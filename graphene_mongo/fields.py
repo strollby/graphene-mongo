@@ -315,7 +315,9 @@ class MongoengineConnectionField(ConnectionField):
             else:
                 return model.objects(**args).no_dereference().only(*required_fields).order_by(self.order_by).skip(
                     skip)
-        return model.objects(**args).no_dereference().only(*required_fields).order_by(self.order_by)
+
+        order_by = self.order_by if self.order_by is not None else "pk"
+        return model.objects(**args).no_dereference().only(*required_fields).order_by(order_by)
 
     def default_resolver(self, _root, info, required_fields=None, resolved=None, **args):
         if required_fields is None:
@@ -471,13 +473,17 @@ class MongoengineConnectionField(ConnectionField):
             list_length = len(iterables)
 
         if count:
-            has_next_page = True if (0 if limit is None else limit) + (0 if skip is None else skip) < count else False
+            queryset_length = (0 if limit is None else limit) + (0 if skip is None else skip)
+            has_next_page = True if (queryset_length < count) else False
+            has_previous_page = True if (queryset_length <= count and queryset_length != 1) else False
         else:
             if isinstance(queryset, QuerySet) and iterables:
                 has_next_page = bool(queryset(pk__gt=iterables[-1].pk).limit(1).first())
+                has_previous_page = bool(queryset(pk__lt=iterables[-1].pk).limit(1).first())
             else:
                 has_next_page = False
-        has_previous_page = True if skip else False
+                has_previous_page = True if skip else False
+
         if reverse:
             iterables = list(iterables)
             iterables.reverse()

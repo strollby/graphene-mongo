@@ -14,11 +14,15 @@ class Registry(object):
     def register(self, cls):
         from .types import GrapheneMongoengineObjectTypes
         from .types_async import AsyncGrapheneMongoengineObjectTypes
+        from .experimental.pagination.types_pagination_async import (
+            AsyncGrapheneMongoenginePaginationObjectTypes,
+        )
 
         assert (
             issubclass(cls, GrapheneMongoengineObjectTypes)
             or issubclass(cls, AsyncGrapheneMongoengineObjectTypes)
-        ), 'Only Mongoengine/Async Mongoengine object types can be registered, received "{}"'.format(
+            or issubclass(cls, AsyncGrapheneMongoenginePaginationObjectTypes)
+        ), 'Only Mongoengine/Async Mongoengine/Async Mongoengine Pagination object types can be registered, received "{}"'.format(
             cls.__name__
         )
         assert cls._meta.registry == self, "Registry for a Model have to match."

@@ -14,7 +14,6 @@ classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
     "Topic :: Software Development :: Libraries",
-    "Programming Language :: Python :: 3.8",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
@@ -27,8 +26,9 @@ keywords = [
 ]
 
 [tool.poetry.dependencies]
-python = ">=3.8,<4"
+python = ">=3.9,<4"
 graphene = ">=3.1.1"
+graphene-federation = { rev = "3.1.4-beta.14", git = "https://github.com/strollby/graphene-federation.git" }
 promise = ">=2.3"
 mongoengine = ">=0.27"
 asgiref = "^3.7.2"

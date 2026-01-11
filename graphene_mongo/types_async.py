@@ -179,9 +179,7 @@ def create_graphene_generic_class_async(object_type, option_type):
                 if to_snake_case(field) in cls._meta.model._fields_ordered:
                     required_fields.append(to_snake_case(field))
             required_fields = list(set(required_fields))
-            return await sync_to_async(
-                cls._meta.model.objects.no_dereference().only(*required_fields).get
-            )(pk=id)
+            return await sync_to_async(cls._meta.model.objects.only(*required_fields).get)(pk=id)
 
         def resolve_id(self, info):
             return str(self.id)

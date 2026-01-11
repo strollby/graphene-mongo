@@ -1,6 +1,7 @@
 import base64
-import os
 import json
+import os
+
 import graphene
 import pytest
 
@@ -79,7 +80,7 @@ async def test_should_query_reporter(fixtures):
         reporter = graphene.Field(types.ReporterType)
 
         async def resolve_reporter(self, *args, **kwargs):
-            return models.Reporter.objects.first()
+            return models.Reporter.objects.select_related("articles").first()
 
     query = """
         query ReporterQuery {
@@ -155,7 +156,7 @@ async def test_should_self_reference(fixtures):
         all_players = graphene.List(types.PlayerType)
 
         async def resolve_all_players(self, *args, **kwargs):
-            return models.Player.objects.all()
+            return models.Player.objects.select_related("players").all()
 
     query = """
         query PlayersQuery {
@@ -340,6 +341,28 @@ async def test_should_query_all_childs(fixtures):
                 "bar": "bar",
                 "qux": "qux",
                 "loc": {"type": "Point", "coordinates": [20, 10]},
+            },
+        ]
+    }
+    expected = {
+        "children": [
+            {"bar": "BAR", "qux": "QUX", "loc": None},
+            {
+                "bar": "bar",
+                "qux": "qux",
+                "loc": {
+                    "type": "Point",
+                    "coordinates": [20.0, 10.0],
+                },
+            },
+            {"bar": "BAR", "baz": "BAZ", "loc": None},
+            {
+                "bar": "bar",
+                "baz": "baz",
+                "loc": {
+                    "type": "Point",
+                    "coordinates": [10.0, 20.0],
+                },
             },
         ]
     }

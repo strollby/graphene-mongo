@@ -54,7 +54,7 @@ class DynamicReferenceFieldResolver:
             if not isinstance(result, tuple):
                 return result
             document, only_fields, pk = result
-            return document.objects.no_dereference().only(*only_fields).get(pk=pk)
+            return document.objects.only(*only_fields).get(pk=pk)
 
         return resolver
 
@@ -67,8 +67,6 @@ class DynamicReferenceFieldResolver:
             if not isinstance(result, tuple):
                 return result
             document, only_fields, pk = result
-            return await sync_to_async(document.objects.no_dereference().only(*only_fields).get)(
-                pk=pk
-            )
+            return await sync_to_async(document.objects.only(*only_fields).get)(pk=pk)
 
         return resolver

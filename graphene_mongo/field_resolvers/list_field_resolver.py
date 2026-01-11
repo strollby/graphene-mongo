@@ -10,10 +10,11 @@ from graphene_mongo.utils import (
     ExecutorEnum,
     get_queried_union_types,
     sync_to_async,
+    get_document,
 )
 import mongoengine
 from mongoengine import Document
-from mongoengine.base import LazyReference, get_document
+from mongoengine.base import LazyReference
 
 
 class ListFieldResolver:
@@ -57,7 +58,7 @@ class ListFieldResolver:
         document, only_fields, document_ids = ListFieldResolver.__get_reference_objects_common(
             registry, model, executor, object_id_list, queried_fields
         )
-        return document.objects().no_dereference().only(*only_fields).filter(pk__in=document_ids)
+        return document.objects().only(*only_fields).filter(pk__in=document_ids)
 
     @staticmethod
     async def __get_reference_objects_async(
@@ -71,7 +72,7 @@ class ListFieldResolver:
             registry, model, executor, object_id_list, queried_fields
         )
         return await sync_to_async(list)(
-            document.objects().no_dereference().only(*only_fields).filter(pk__in=document_ids)
+            document.objects().only(*only_fields).filter(pk__in=document_ids)
         )
 
     # ======================= DB CALLS: END =======================

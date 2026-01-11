@@ -2,13 +2,11 @@ from datetime import datetime
 from enum import Enum
 
 import mongoengine
-import mongomock
 from mongomock import gridfs
 
 gridfs.enable_gridfs_integration()
-mongoengine.connect(
-    "graphene-mongo-test", mongo_client_class=mongomock.MongoClient, alias="default"
-)
+mongoengine.connect("graphene-mongo-test", alias="default")
+mongoengine.async_connect("graphene_mongo-test", alias="default-async")
 
 
 # mongoengine.connect('graphene-mongo-test', host='mongodb://localhost/graphene-mongo-dev')
@@ -40,7 +38,7 @@ class Editor(mongoengine.Document):
     metadata = mongoengine.MapField(
         field=mongoengine.StringField(), help_text="Arbitrary metadata."
     )
-    company = mongoengine.LazyReferenceField(Publisher)
+    company = mongoengine.ReferenceField(Publisher)
     avatar = mongoengine.FileField()
     seq = mongoengine.SequenceField()
 
@@ -208,7 +206,7 @@ class SchoolClass(mongoengine.Document):
     members = mongoengine.ListField(
         mongoengine.GenericEmbeddedDocumentField(choices=[Student, Teacher])
     )
-    records = mongoengine.ListField(mongoengine.GenericLazyReferenceField(choices=[Bench, Exam]))
+    records = mongoengine.ListField(mongoengine.GenericReferenceField(choices=[Bench, Exam]))
 
 
 class School(mongoengine.Document):

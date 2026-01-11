@@ -177,20 +177,11 @@ class AsyncMongoengineConnectionField(MongoengineConnectionField):
                 for key in args.copy():
                     if key not in self.model._fields_ordered:
                         args_copy.pop(key)
-                    elif (
-                        isinstance(getattr(self.model, key), mongoengine.fields.ReferenceField)
-                        or isinstance(
-                            getattr(self.model, key),
-                            mongoengine.fields.GenericReferenceField,
-                        )
-                        or isinstance(
-                            getattr(self.model, key),
-                            mongoengine.fields.LazyReferenceField,
-                        )
-                        or isinstance(
-                            getattr(self.model, key),
-                            mongoengine.fields.CachedReferenceField,
-                        )
+                    elif isinstance(
+                        getattr(self.model, key), mongoengine.fields.ReferenceField
+                    ) or isinstance(
+                        getattr(self.model, key),
+                        mongoengine.fields.GenericReferenceField,
                     ):
                         if not isinstance(args_copy[key], ObjectId):
                             _from_global_id = from_global_id(args_copy[key])[1]

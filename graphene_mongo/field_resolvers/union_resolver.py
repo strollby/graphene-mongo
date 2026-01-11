@@ -3,14 +3,9 @@ from typing import Optional, Union
 
 from bson import ObjectId
 from graphene.utils.str_converters import to_snake_case
-from graphene_mongo.utils import (
-    ExecutorEnum,
-    get_queried_union_types,
-    sync_to_async,
-)
+from graphene_mongo.utils import ExecutorEnum, get_queried_union_types, sync_to_async, get_document
 import mongoengine
 from mongoengine import Document
-from mongoengine.base import get_document
 
 
 class UnionFieldResolver:
@@ -97,14 +92,14 @@ class UnionFieldResolver:
         def resolver(root, *args, **kwargs) -> Optional[Document]:
             resolver_fun = (
                 UnionFieldResolver.__lazy_reference_resolver_common
-                if isinstance(field, mongoengine.GenericLazyReferenceField)
+                if isinstance(field, mongoengine.GenericReferenceField)
                 else UnionFieldResolver.__reference_resolver_common
             )
             result = resolver_fun(field, registry, executor, root, *args, **kwargs)
             if not isinstance(result, tuple):
                 return result
             document, only_fields, pk = result
-            return document.objects.no_dereference().only(*only_fields).get(pk=pk)
+            return document.objects.only(*only_fields).get(pk=pk)
 
         return resolver
 
@@ -113,15 +108,13 @@ class UnionFieldResolver:
         async def resolver(root, *args, **kwargs) -> Optional[Document]:
             resolver_fun = (
                 UnionFieldResolver.__lazy_reference_resolver_common
-                if isinstance(field, mongoengine.GenericLazyReferenceField)
+                if isinstance(field, mongoengine.GenericReferenceField)
                 else UnionFieldResolver.__reference_resolver_common
             )
             result = resolver_fun(field, registry, executor, root, *args, **kwargs)
             if not isinstance(result, tuple):
                 return result
             document, only_fields, pk = result
-            return await sync_to_async(document.objects.no_dereference().only(*only_fields).get)(
-                pk=pk
-            )
+            return await sync_to_async(document.objects.only(*only_fields).get)(pk=pk)
 
         return resolver

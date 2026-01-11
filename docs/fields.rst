@@ -17,7 +17,6 @@ Mongoengine Fields
 - IntField
 - LazyReferenceField
 - ListField
-- LongField
 - MapField
 - MultiPolygonField
 - ObjectIdField

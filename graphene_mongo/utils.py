@@ -19,11 +19,20 @@ from graphql import (
 )
 from graphql_relay.connection.array_connection import offset_to_cursor
 import mongoengine
+from mongoengine.base import _DocumentRegistry as DocumentRegistry
 
 
 class ExecutorEnum(enum.Enum):
     ASYNC = enum.auto()
     SYNC = enum.auto()
+
+
+def get_document(model):
+    model_name = model
+    if not isinstance(model, str):
+        model_name = model.__name__
+
+    return DocumentRegistry.get(model_name)
 
 
 def get_model_fields(model, excluding=None):
@@ -42,7 +51,7 @@ def get_model_reference_fields(model, excluding=None):
     for attr_name, attr in model._fields.items():
         if attr_name in excluding or not isinstance(
             attr,
-            (mongoengine.fields.ReferenceField, mongoengine.fields.LazyReferenceField),
+            mongoengine.fields.ReferenceField,
         ):
             continue
         attributes[attr_name] = attr

@@ -20,7 +20,6 @@ from graphene.utils.str_converters import to_snake_case
 from graphql import GraphQLResolveInfo
 from graphql_relay import cursor_to_offset, from_global_id
 from mongoengine import QuerySet
-from mongoengine.base import get_document
 from promise import Promise
 from pymongo.errors import OperationFailure
 
@@ -40,6 +39,7 @@ from .utils import (
     get_model_reference_fields,
     get_query_fields,
     has_page_info,
+    get_document,
 )
 
 PYMONGO_VERSION = tuple(pymongo.version_tuple[:2])
@@ -236,7 +236,6 @@ class MongoengineConnectionField(ConnectionField):
             if isinstance(
                 mongo_field,
                 (
-                    mongoengine.LazyReferenceField,
                     mongoengine.ReferenceField,
                     mongoengine.GenericReferenceField,
                 ),
@@ -328,21 +327,14 @@ class MongoengineConnectionField(ConnectionField):
         if limit is not None:
             return (
                 model.objects(**args)
-                .no_dereference()
                 .only(*required_fields)
                 .order_by(self.order_by)
                 .skip(skip if skip else 0)
                 .limit(limit)
             )
         elif skip is not None:
-            return (
-                model.objects(**args)
-                .no_dereference()
-                .only(*required_fields)
-                .order_by(self.order_by)
-                .skip(skip)
-            )
-        return model.objects(**args).no_dereference().only(*required_fields).order_by(self.order_by)
+            return model.objects(**args).only(*required_fields).order_by(self.order_by).skip(skip)
+        return model.objects(**args).only(*required_fields).order_by(self.order_by)
 
     def default_resolver(self, _root, info, required_fields=None, resolved=None, **args):
         if required_fields is None:
@@ -450,20 +442,11 @@ class MongoengineConnectionField(ConnectionField):
                 for key in args.copy():
                     if key not in self.model._fields_ordered:
                         args_copy.pop(key)
-                    elif (
-                        isinstance(getattr(self.model, key), mongoengine.fields.ReferenceField)
-                        or isinstance(
-                            getattr(self.model, key),
-                            mongoengine.fields.GenericReferenceField,
-                        )
-                        or isinstance(
-                            getattr(self.model, key),
-                            mongoengine.fields.LazyReferenceField,
-                        )
-                        or isinstance(
-                            getattr(self.model, key),
-                            mongoengine.fields.CachedReferenceField,
-                        )
+                    elif isinstance(
+                        getattr(self.model, key), mongoengine.fields.ReferenceField
+                    ) or isinstance(
+                        getattr(self.model, key),
+                        mongoengine.fields.GenericReferenceField,
                     ):
                         if not isinstance(args_copy[key], ObjectId):
                             _from_global_id = from_global_id(args_copy[key])[1]

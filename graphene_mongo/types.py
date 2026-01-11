@@ -243,7 +243,7 @@ def create_graphene_generic_class(object_type, option_type):
                     required_fields.append(to_snake_case(field))
             required_fields = list(set(required_fields))
             return await sync_to_async(
-                cls._meta.model.objects.no_dereference().only(*required_fields).get,
+                cls._meta.model.objects.only(*required_fields).get,
             )(pk=id)
 
         def resolve_id(self, info):

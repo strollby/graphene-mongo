@@ -14,7 +14,6 @@ classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
     "Topic :: Software Development :: Libraries",
-    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
@@ -33,7 +32,7 @@ python = ">=3.10,<4"
 graphene = ">=3.1.1"
 graphene-federation = ">=3.1.5"
 promise = ">=2.3"
-mongoengine = { rev = "v0.30.0-alpha.1", git = "https://github.com/strollby/mongoengine" }
+mongoengine = { rev = "v0.30.0-alpha.2", git = "https://github.com/strollby/mongoengine" }
 asgiref = "^3.7.2"
 
 [tool.poetry.group.dev.dependencies]
@@ -41,7 +40,7 @@ pytest = "*"
 mongomock = ">=4.1.2"
 mock = ">=5.0.1"
 pytest-cov = "*"
-pytest-asyncio = "^0.21.0"
+pytest-asyncio = "*"
 ruff = "*"
 setuptools = ">=69.0.2,<79.0.0"
 
@@ -52,3 +51,10 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.ruff]
 line-length = 100
+
+[tool.pytest.ini_options]
+minversion = "8.0"
+addopts = "-v -s"
+asyncio_mode= "auto"
+asyncio_default_fixture_loop_scope = "session"
+asyncio_default_test_loop_scope = "session"

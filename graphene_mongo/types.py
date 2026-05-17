@@ -8,8 +8,10 @@ from graphene.types.interface import Interface, InterfaceOptions
 from graphene.types.objecttype import ObjectType, ObjectTypeOptions
 from graphene.types.utils import yank_fields_from_attrs
 from graphene.utils.str_converters import to_snake_case
+from strollby.utils.mongoengine_async import QS
 
 from graphene_mongo import MongoengineConnectionField
+
 from .converter import convert_mongoengine_field
 from .registry import Registry, get_global_registry, get_inputs_registry
 from .utils import (
@@ -17,7 +19,6 @@ from .utils import (
     get_model_fields,
     get_query_fields,
     is_valid_mongoengine_model,
-    sync_to_async,
 )
 
 
@@ -242,9 +243,7 @@ def create_graphene_generic_class(object_type, option_type):
                 if to_snake_case(field) in cls._meta.model._fields_ordered:
                     required_fields.append(to_snake_case(field))
             required_fields = list(set(required_fields))
-            return await sync_to_async(
-                cls._meta.model.objects.no_dereference().only(*required_fields).get,
-            )(pk=id)
+            return await QS(cls._meta.model, auto_deference=False).only(*required_fields).get(id=id)
 
         def resolve_id(self, info):
             return str(self.id)

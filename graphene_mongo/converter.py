@@ -1,25 +1,25 @@
 import sys
+from functools import singledispatch
 
 import graphene
 import mongoengine
-
 from graphene.types.json import JSONString
 from graphene.utils.str_converters import to_camel_case
 from mongoengine.base import get_document
+
 from . import advanced_types
-from .utils import (
-    get_field_description,
-    get_field_is_required,
-    get_field_resolver,
-    ExecutorEnum,
-)
 from .field_resolvers import (
     DynamicLazyFieldResolver,
     DynamicReferenceFieldResolver,
     ListFieldResolver,
     UnionFieldResolver,
 )
-from functools import singledispatch
+from .utils import (
+    ExecutorEnum,
+    get_field_description,
+    get_field_is_required,
+    get_field_resolver,
+)
 
 
 class MongoEngineConversionError(Exception):

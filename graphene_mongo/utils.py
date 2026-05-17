@@ -1,13 +1,11 @@
 from __future__ import unicode_literals
 
-from collections import OrderedDict
-from concurrent.futures import ThreadPoolExecutor
 import enum
 import inspect
-from typing import Any, Callable, Optional, Union
+from collections import OrderedDict
+from typing import Callable, Optional
 
-from asgiref.sync import SyncToAsync
-from asgiref.sync import sync_to_async as asgiref_sync_to_async
+import mongoengine
 from graphene import Node
 from graphene.utils.trim_docstring import trim_docstring
 from graphql import (
@@ -18,7 +16,6 @@ from graphql import (
     VariableNode,
 )
 from graphql_relay.connection.array_connection import offset_to_cursor
-import mongoengine
 
 
 class ExecutorEnum(enum.Enum):
@@ -397,30 +394,6 @@ def connection_from_iterables(
             has_next_page=has_next_page,
         ),
     )
-
-
-def sync_to_async(
-    func: Callable = None,
-    thread_sensitive: bool = False,
-    executor: Any = None,  # noqa
-) -> Union[SyncToAsync, Callable[[Callable[..., Any]], SyncToAsync]]:
-    """
-    Wrapper over sync_to_async from asgiref.sync
-    Defaults to thread insensitive with ThreadPoolExecutor of n workers
-    Args:
-        func:
-            Function to be converted to coroutine
-        thread_sensitive:
-            If the operation is thread sensitive and should run in synchronous thread
-        executor:
-            Threadpool executor, if thread_sensitive=False
-
-    Returns:
-        coroutine version of func
-    """
-    if executor is None:
-        executor = ThreadPoolExecutor()
-    return asgiref_sync_to_async(func=func, thread_sensitive=thread_sensitive, executor=executor)
 
 
 def get_field_resolver(

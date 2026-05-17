@@ -3,12 +3,13 @@ from typing import Optional, Union
 
 from bson import ObjectId
 from graphene.utils.str_converters import to_snake_case
+from mongoengine import Document
+from strollby.utils.mongoengine_async import QS
+
 from graphene_mongo.utils import (
     ExecutorEnum,
     get_query_fields,
-    sync_to_async,
 )
-from mongoengine import Document
 
 
 class DynamicLazyFieldResolver:
@@ -59,9 +60,7 @@ class DynamicLazyFieldResolver:
             )
             if not isinstance(result, tuple):
                 return result
-            document, only_fields, pk = result
-            return await sync_to_async(document.objects.no_dereference().only(*only_fields).get)(
-                pk=pk
-            )
+            model, only_fields, id = result
+            return await QS(model, auto_deference=False).only(*only_fields).get(id=id)
 
         return resolver

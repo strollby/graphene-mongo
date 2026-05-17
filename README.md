@@ -74,8 +74,8 @@ To create a GraphQL schema and async executor; for it you simply have to write t
 import graphene
 
 from graphene_mongo import AsyncMongoengineObjectType
-from graphene_mongo.utils import sync_to_async
 from concurrent.futures import ThreadPoolExecutor
+from strollby.utils.mongoengine_async import QS
 
 from .models import User as UserModel
 
@@ -89,8 +89,7 @@ class Query(graphene.ObjectType):
     users = graphene.List(User)
 
     async def resolve_users(self, info):
-        return await sync_to_async(list, thread_sensitive=False,
-                             executor=ThreadPoolExecutor())(UserModel.objects.all())
+        return await QS(UserModel).to_list()
 
 
 schema = graphene.Schema(query=Query)

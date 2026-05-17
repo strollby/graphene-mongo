@@ -4,16 +4,17 @@ from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Optional, Union
 
+import mongoengine
 from bson import ObjectId
 from graphene.utils.str_converters import to_snake_case
+from mongoengine import Document
+from mongoengine.base import LazyReference, get_document
+from strollby.utils.mongoengine_async import QS
+
 from graphene_mongo.utils import (
     ExecutorEnum,
     get_queried_union_types,
-    sync_to_async,
 )
-import mongoengine
-from mongoengine import Document
-from mongoengine.base import LazyReference, get_document
 
 
 class ListFieldResolver:
@@ -70,8 +71,11 @@ class ListFieldResolver:
         document, only_fields, document_ids = ListFieldResolver.__get_reference_objects_common(
             registry, model, executor, object_id_list, queried_fields
         )
-        return await sync_to_async(list)(
-            document.objects().no_dereference().only(*only_fields).filter(pk__in=document_ids)
+        return (
+            await QS(document, auto_deference=False)
+            .filter(id__in=document_ids)
+            .only(*only_fields)
+            .to_list()
         )
 
     # ======================= DB CALLS: END =======================

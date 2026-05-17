@@ -1,16 +1,17 @@
 from collections.abc import Callable
 from typing import Optional, Union
 
+import mongoengine
 from bson import ObjectId
 from graphene.utils.str_converters import to_snake_case
+from mongoengine import Document
+from mongoengine.base import get_document
+from strollby.utils.mongoengine_async import QS
+
 from graphene_mongo.utils import (
     ExecutorEnum,
     get_queried_union_types,
-    sync_to_async,
 )
-import mongoengine
-from mongoengine import Document
-from mongoengine.base import get_document
 
 
 class UnionFieldResolver:
@@ -119,9 +120,7 @@ class UnionFieldResolver:
             result = resolver_fun(field, registry, executor, root, *args, **kwargs)
             if not isinstance(result, tuple):
                 return result
-            document, only_fields, pk = result
-            return await sync_to_async(document.objects.no_dereference().only(*only_fields).get)(
-                pk=pk
-            )
+            model, only_fields, id = result
+            return await QS(model, auto_deference=False).only(*only_fields).get(id=id)
 
         return resolver

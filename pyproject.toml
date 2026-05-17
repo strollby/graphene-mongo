@@ -28,13 +28,19 @@ keywords = [
 ]
 exclude = ["graphene_mongo/tests"]
 
+[[tool.poetry.source]]
+name = "strollpy"
+url = "https://asia-python.pkg.dev/strollby-staging/python/simple/"
+priority = "explicit"
+
 [tool.poetry.dependencies]
-python = ">=3.9,<4"
+python = ">=3.12,<4"
 graphene = ">=3.1.1"
 graphene-federation = ">=3.1.5"
 promise = ">=2.3"
 mongoengine = ">=0.27"
 asgiref = "^3.7.2"
+strollby-shared-library = { version = "*", source = "strollpy", extras=["mongoengine-async"] }
 
 [tool.poetry.group.dev.dependencies]
 pytest = "*"
@@ -52,3 +58,7 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.ruff]
 line-length = 100
+
+[tool.ruff.lint]
+select = ["ALL"]
+ignore = []

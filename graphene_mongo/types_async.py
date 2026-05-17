@@ -1,15 +1,16 @@
+from bson import ObjectId
 import graphene
-import mongoengine
 from graphene import InputObjectType
 from graphene.relay import Connection, Node
 from graphene.types.interface import Interface, InterfaceOptions
 from graphene.types.objecttype import ObjectType, ObjectTypeOptions
 from graphene.types.utils import yank_fields_from_attrs
 from graphene.utils.str_converters import to_snake_case
+from graphql import GraphQLResolveInfo
+import mongoengine
 from strollby.utils.mongoengine_async import QS
 
 from graphene_mongo import AsyncMongoengineConnectionField
-
 from .registry import Registry, get_global_async_registry, get_inputs_async_registry
 from .types import construct_fields, construct_self_referenced_fields
 from .utils import ExecutorEnum, get_query_fields, is_valid_mongoengine_model
@@ -185,6 +186,16 @@ def create_graphene_generic_class_async(object_type, option_type):
 
         def resolve_id(self, info):
             return str(self.id)
+
+        @classmethod
+        async def dataloader_resolver(
+            cls, info: GraphQLResolveInfo, ids: list[ObjectId], projections: list[str] | None = None
+        ):
+            """Resolver for dataloader. Override this to implement custom resolver"""
+            docs = QS(cls._meta.model, auto_deference=False).filter(id__in=ids)
+            if projections:
+                docs = docs.only(*projections)
+            return await docs.to_list()
 
     return AsyncGrapheneMongoengineGenericType, AsyncMongoengineGenericObjectTypeOptions
 

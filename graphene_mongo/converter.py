@@ -243,7 +243,7 @@ def convert_field_to_union(field, registry=None, executor: ExecutorEnum = Execut
         if field.db_field is not None:
             required = get_field_is_required(field, registry)
             resolver_function = getattr(
-                registry.get_type_for_model(field.owner_document, executor=executor),
+                registry.get_type_for_model(field.owner_document),
                 "resolve_" + field.db_field,
                 None,
             )
@@ -275,7 +275,7 @@ def convert_field_to_dynamic(field, registry=None, executor: ExecutorEnum = Exec
     model = field.document_type
 
     def dynamic_type():
-        _type = registry.get_type_for_model(model, executor=executor)
+        _type = registry.get_type_for_model(model)
         if not _type:
             return None
         if isinstance(field, mongoengine.EmbeddedDocumentField):
@@ -289,7 +289,7 @@ def convert_field_to_dynamic(field, registry=None, executor: ExecutorEnum = Exec
         if field.db_field is not None:
             required = get_field_is_required(field, registry)
             resolver_function = getattr(
-                registry.get_type_for_model(field.owner_document, executor=executor),
+                registry.get_type_for_model(field.owner_document),
                 "resolve_" + field.db_field,
                 None,
             )
@@ -319,7 +319,7 @@ def convert_lazy_field_to_dynamic(field, registry=None, executor: ExecutorEnum =
     model = field.document_type
 
     def dynamic_type():
-        _type = registry.get_type_for_model(model, executor=executor)
+        _type = registry.get_type_for_model(model)
         if not _type:
             return None
         field_resolver = None
@@ -327,7 +327,7 @@ def convert_lazy_field_to_dynamic(field, registry=None, executor: ExecutorEnum =
         if field.db_field is not None:
             required = get_field_is_required(field, registry)
             resolver_function = getattr(
-                registry.get_type_for_model(field.owner_document, executor=executor),
+                registry.get_type_for_model(field.owner_document),
                 "resolve_" + field.db_field,
                 None,
             )

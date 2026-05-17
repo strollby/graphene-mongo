@@ -6,10 +6,10 @@ from bson import ObjectId
 from graphene.utils.str_converters import to_snake_case
 from mongoengine import Document
 from mongoengine.base import get_document
-from strollby.utils.mongoengine_async import QS
 
 from graphene_mongo.utils import (
     ExecutorEnum,
+    get_dataloader,
     get_queried_union_types,
 )
 
@@ -36,11 +36,7 @@ class UnionFieldResolver:
                 for each in values:
                     filter_args.append(key + "__" + each)
 
-        registry_string_map = (
-            registry._registry_string_map
-            if executor == ExecutorEnum.SYNC
-            else registry._registry_async_string_map
-        )
+        registry_string_map = registry._registry_string_map
         querying_union_types = get_queried_union_types(
             info=args[0], valid_gql_types=registry_string_map.keys()
         )
@@ -72,7 +68,7 @@ class UnionFieldResolver:
 
         document_id = document.pk
         queried_fields = list()
-        document_field_type = registry.get_type_for_model(document.document_type, executor=executor)
+        document_field_type = registry.get_type_for_model(document.document_type)
         querying_union_types = get_queried_union_types(
             info=args[0], valid_gql_types=registry._registry_string_map.keys()
         )
@@ -86,7 +82,7 @@ class UnionFieldResolver:
                 item = to_snake_case(each)
                 if item in document.document_type._fields_ordered + tuple(filter_args):
                     queried_fields.append(item)
-            _type = registry.get_type_for_model(document.document_type, executor=executor)
+            _type = registry.get_type_for_model(document.document_type)
             only_fields = set(list(_type._meta.required_fields) + queried_fields)
 
             return document.document_type, only_fields, document_id
@@ -121,6 +117,10 @@ class UnionFieldResolver:
             if not isinstance(result, tuple):
                 return result
             model, only_fields, id = result
-            return await QS(model, auto_deference=False).only(*only_fields).get(id=id)
+            return (
+                await get_dataloader(info=args[0])
+                .model(model_class=model, projections=only_fields)
+                .load(id)
+            )
 
         return resolver

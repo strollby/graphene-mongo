@@ -1,14 +1,15 @@
 from graphene import Enum
+from mongoengine import Document
 
 from graphene_mongo.utils import ExecutorEnum
 
 
 class Registry(object):
-    def __init__(self):
+    def __init__(self, executor: ExecutorEnum):
+        self.executor = executor
         self._registry = {}
-        self._registry_async = {}
+        self._registry_document_map = {}
         self._registry_string_map = {}
-        self._registry_async_string_map = {}
         self._registry_enum = {}
 
     def register(self, cls):
@@ -23,12 +24,10 @@ class Registry(object):
             )
         )
         assert cls._meta.registry == self, "Registry for a Model have to match."
-        if issubclass(cls, GrapheneMongoengineObjectTypes):
-            self._registry[cls._meta.model] = cls
-            self._registry_string_map[cls.__name__] = cls._meta.model.__name__
-        else:
-            self._registry_async[cls._meta.model] = cls
-            self._registry_async_string_map[cls.__name__] = cls._meta.model.__name__
+        self._registry[cls._meta.model] = cls
+        if issubclass(cls._meta.model, Document):
+            self._registry_document_map[cls._meta.model.__name__] = cls
+        self._registry_string_map[cls.__name__] = cls._meta.model.__name__
 
         # Rescan all fields
         for model, cls in self._registry.items():
@@ -47,11 +46,13 @@ class Registry(object):
         cls.__name__ = name
         self._registry_enum[cls] = Enum.from_enum(cls)
 
-    def get_type_for_model(self, model, executor: ExecutorEnum = ExecutorEnum.SYNC):
-        if executor == ExecutorEnum.SYNC:
-            return self._registry.get(model)
-        else:
-            return self._registry_async.get(model)
+    def get_type_for_model(self, model):
+        return self._registry.get(model)
+
+    def get_type_for_document_model(self, model):
+        if not issubclass(model, Document):
+            raise TypeError(f"{model} is not a Document")
+        return self._registry_document_map.get(model.__name__)
 
     def check_enum_already_exist(self, cls):
         return cls in self._registry_enum
@@ -69,28 +70,28 @@ async_inputs_registry = None
 def get_inputs_registry():
     global inputs_registry
     if not inputs_registry:
-        inputs_registry = Registry()
+        inputs_registry = Registry(executor=ExecutorEnum.SYNC)
     return inputs_registry
 
 
 def get_inputs_async_registry():
     global async_inputs_registry
     if not async_inputs_registry:
-        async_inputs_registry = Registry()
+        async_inputs_registry = Registry(executor=ExecutorEnum.ASYNC)
     return async_inputs_registry
 
 
 def get_global_registry():
     global registry
     if not registry:
-        registry = Registry()
+        registry = Registry(executor=ExecutorEnum.SYNC)
     return registry
 
 
 def get_global_async_registry():
     global async_registry
     if not async_registry:
-        async_registry = Registry()
+        async_registry = Registry(executor=ExecutorEnum.ASYNC)
     return async_registry
 
 

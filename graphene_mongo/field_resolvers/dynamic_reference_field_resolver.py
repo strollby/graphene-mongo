@@ -4,10 +4,10 @@ from typing import Optional, Union
 from bson import ObjectId
 from graphene.utils.str_converters import to_snake_case
 from mongoengine import Document, ReferenceField
-from strollby.utils.mongoengine_async import QS
 
 from graphene_mongo.utils import (
     ExecutorEnum,
+    get_dataloader,
     get_query_fields,
 )
 
@@ -22,7 +22,7 @@ class DynamicReferenceFieldResolver:
             return None
 
         queried_fields = list()
-        _type = registry.get_type_for_model(field.document_type, executor=executor)
+        _type = registry.get_type_for_model(field.document_type)
         filter_args = list()
         if _type._meta.filter_fields:
             for key, values in _type._meta.filter_fields.items():
@@ -68,6 +68,10 @@ class DynamicReferenceFieldResolver:
             if not isinstance(result, tuple):
                 return result
             model, only_fields, id = result
-            return await QS(model, auto_deference=False).only(*only_fields).get(id=id)
+            return (
+                await get_dataloader(info=args[0])
+                .model(model_class=model, projections=only_fields)
+                .load(id)
+            )
 
         return resolver

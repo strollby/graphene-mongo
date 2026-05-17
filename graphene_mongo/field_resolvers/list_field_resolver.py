@@ -9,10 +9,10 @@ from bson import ObjectId
 from graphene.utils.str_converters import to_snake_case
 from mongoengine import Document
 from mongoengine.base import LazyReference, get_document
-from strollby.utils.mongoengine_async import QS
 
 from graphene_mongo.utils import (
     ExecutorEnum,
+    get_dataloader,
     get_queried_union_types,
 )
 
@@ -67,15 +67,15 @@ class ListFieldResolver:
         executor: ExecutorEnum,
         object_id_list: list[ObjectId],
         queried_fields: dict,
+        args: tuple,
     ):
         document, only_fields, document_ids = ListFieldResolver.__get_reference_objects_common(
             registry, model, executor, object_id_list, queried_fields
         )
         return (
-            await QS(document, auto_deference=False)
-            .filter(id__in=document_ids)
-            .only(*only_fields)
-            .to_list()
+            await get_dataloader(info=args[0])
+            .model(model_class=document, projections=only_fields)
+            .load_many(document_ids)
         )
 
     # ======================= DB CALLS: END =======================
@@ -110,11 +110,7 @@ class ListFieldResolver:
             return None
 
         choice_to_resolve = dict()
-        registry_string_map = (
-            registry._registry_string_map
-            if executor == ExecutorEnum.SYNC
-            else registry._registry_async_string_map
-        )
+        registry_string_map = registry._registry_string_map
         querying_union_types = get_queried_union_types(
             info=args[0], valid_gql_types=registry_string_map.keys()
         )
@@ -164,7 +160,12 @@ class ListFieldResolver:
                     queried_fields = to_resolve_models[model]
                     task = loop.create_task(
                         ListFieldResolver.__get_reference_objects_async(
-                            registry, model, executor, object_id_list, queried_fields
+                            registry,
+                            model,
+                            executor,
+                            object_id_list,
+                            queried_fields,
+                            args,
                         )
                     )
                 else:

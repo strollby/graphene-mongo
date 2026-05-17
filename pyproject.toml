@@ -41,6 +41,7 @@ promise = ">=2.3"
 mongoengine = ">=0.27"
 asgiref = "^3.7.2"
 strollby-shared-library = { version = "*", source = "strollpy", extras=["mongoengine-async"] }
+aiodataloader = "^0.4.3"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "*"

@@ -1,11 +1,10 @@
 from __future__ import unicode_literals
 
+from collections import OrderedDict
 import enum
 import inspect
-from collections import OrderedDict
 from typing import Callable, Optional
 
-import mongoengine
 from graphene import Node
 from graphene.utils.trim_docstring import trim_docstring
 from graphql import (
@@ -15,7 +14,11 @@ from graphql import (
     GraphQLSkipDirective,
     VariableNode,
 )
+from graphql import GraphQLResolveInfo
 from graphql_relay.connection.array_connection import offset_to_cursor
+import mongoengine
+
+from .dataloader import MongoDataLoader
 
 
 class ExecutorEnum(enum.Enum):
@@ -403,7 +406,7 @@ def get_field_resolver(
     field_resolver: Optional[Callable] = None,
 ) -> Callable:
     """
-    Helpr function to get the resolver for a field
+    Helper function to get the resolver for a field
 
     Args:
         field_resolver: user defined resolver (optional)
@@ -421,3 +424,16 @@ def get_field_resolver(
         return default_async_resolver
 
     return default_sync_resolver
+
+
+DATALOADER_CONTEXT_ATTRIBUTE = "_mongo_dataloader"
+
+
+def get_dataloader(info: GraphQLResolveInfo) -> MongoDataLoader:
+    """
+    Get the MongoDataLoader() from info context
+    """
+
+    if not hasattr(info.context, DATALOADER_CONTEXT_ATTRIBUTE):
+        setattr(info.context, DATALOADER_CONTEXT_ATTRIBUTE, MongoDataLoader(info=info))
+    return getattr(info.context, DATALOADER_CONTEXT_ATTRIBUTE)

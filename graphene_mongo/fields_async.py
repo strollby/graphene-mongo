@@ -150,17 +150,22 @@ class AsyncMongoengineConnectionField(MongoengineConnectionField):
             list_length = len(iterables)
 
         elif callable(getattr(self.model, "objects", None)):
-            if "pk__in" in args and args["pk__in"]:
+            if "pk__in" in args:
                 count = len(args["pk__in"])
                 skip, limit = find_skip_and_limit(
                     first=first, last=last, after=after, before=before, count=count
                 )
-                if limit:
-                    args["pk__in"] = args["pk__in"][skip : skip + limit]
-                elif skip:
-                    args["pk__in"] = args["pk__in"][skip:]
-                iterables = self.get_queryset(self.model, info, required_fields, **args)
-                iterables = await sync_to_async(list)(iterables)
+                if args["pk__in"]:
+                    if limit:
+                        args["pk__in"] = args["pk__in"][skip : skip + limit]
+                    elif skip:
+                        args["pk__in"] = args["pk__in"][skip:]
+                    iterables = self.get_queryset(self.model, info, required_fields, **args)
+                    iterables = await sync_to_async(list)(iterables)
+                else:
+                    # If there is no ids to fetch, No need of DB call
+                    iterables = []
+
                 list_length = len(iterables)
                 if isinstance(info, GraphQLResolveInfo):
                     if not info.context:
@@ -203,8 +208,12 @@ class AsyncMongoengineConnectionField(MongoengineConnectionField):
                             args_copy[key] = args_copy[key].value
 
                 if PYMONGO_VERSION >= (3, 7):
+                    if hasattr(self.model, "_meta") and "db_alias" in self.model._meta:
+                        db = mongoengine.get_db(self.model._meta["db_alias"])
+                    else:
+                        db = mongoengine.get_db()
                     count = await sync_to_async(
-                        (mongoengine.get_db()[self.model._get_collection_name()]).count_documents
+                        db[self.model._get_collection_name()].count_documents
                     )(args_copy)
                 else:
                     count = await sync_to_async(self.model.objects(args_copy).count)()

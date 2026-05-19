@@ -1,13 +1,10 @@
 from __future__ import unicode_literals
 
 from collections import OrderedDict
-from concurrent.futures import ThreadPoolExecutor
 import enum
 import inspect
-from typing import Any, Callable, Optional, Union
+from typing import Callable, Optional
 
-from asgiref.sync import SyncToAsync
-from asgiref.sync import sync_to_async as asgiref_sync_to_async
 from graphene import Node
 from graphene.utils.trim_docstring import trim_docstring
 from graphql import (
@@ -17,13 +14,25 @@ from graphql import (
     GraphQLSkipDirective,
     VariableNode,
 )
+from graphql import GraphQLResolveInfo
 from graphql_relay.connection.array_connection import offset_to_cursor
 import mongoengine
+from mongoengine.base.common import _DocumentRegistry
+
+from .dataloader import MongoDataLoader
 
 
 class ExecutorEnum(enum.Enum):
     ASYNC = enum.auto()
     SYNC = enum.auto()
+
+
+def get_document(model):
+    model_name = model
+    if not isinstance(model, str):
+        model_name = model.__name__
+
+    return _DocumentRegistry.get(model_name)
 
 
 def get_model_fields(model, excluding=None):
@@ -42,7 +51,7 @@ def get_model_reference_fields(model, excluding=None):
     for attr_name, attr in model._fields.items():
         if attr_name in excluding or not isinstance(
             attr,
-            (mongoengine.fields.ReferenceField, mongoengine.fields.LazyReferenceField),
+            mongoengine.fields.ReferenceField,
         ):
             continue
         attributes[attr_name] = attr
@@ -399,30 +408,6 @@ def connection_from_iterables(
     )
 
 
-def sync_to_async(
-    func: Callable = None,
-    thread_sensitive: bool = False,
-    executor: Any = None,  # noqa
-) -> Union[SyncToAsync, Callable[[Callable[..., Any]], SyncToAsync]]:
-    """
-    Wrapper over sync_to_async from asgiref.sync
-    Defaults to thread insensitive with ThreadPoolExecutor of n workers
-    Args:
-        func:
-            Function to be converted to coroutine
-        thread_sensitive:
-            If the operation is thread sensitive and should run in synchronous thread
-        executor:
-            Threadpool executor, if thread_sensitive=False
-
-    Returns:
-        coroutine version of func
-    """
-    if executor is None:
-        executor = ThreadPoolExecutor()
-    return asgiref_sync_to_async(func=func, thread_sensitive=thread_sensitive, executor=executor)
-
-
 def get_field_resolver(
     default_async_resolver: Callable,
     default_sync_resolver: Callable,
@@ -430,7 +415,7 @@ def get_field_resolver(
     field_resolver: Optional[Callable] = None,
 ) -> Callable:
     """
-    Helpr function to get the resolver for a field
+    Helper function to get the resolver for a field
 
     Args:
         field_resolver: user defined resolver (optional)
@@ -448,3 +433,19 @@ def get_field_resolver(
         return default_async_resolver
 
     return default_sync_resolver
+
+
+DATALOADER_CONTEXT_ATTRIBUTE = "_mongo_dataloader"
+
+
+def get_dataloader(info: GraphQLResolveInfo) -> MongoDataLoader:
+    """
+    Get the MongoDataLoader() from info context or operation
+    """
+
+    data_point = info.context or info.operation
+
+    if not hasattr(data_point, DATALOADER_CONTEXT_ATTRIBUTE):
+        setattr(data_point, DATALOADER_CONTEXT_ATTRIBUTE, MongoDataLoader(info=info))
+
+    return getattr(data_point, DATALOADER_CONTEXT_ATTRIBUTE)

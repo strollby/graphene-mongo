@@ -19,7 +19,7 @@ async def test_should_query_reporter(fixtures):
         reporter = graphene.Field(nodes.ReporterNode)
 
         async def resolve_reporter(self, *args, **kwargs):
-            return models.Reporter.objects.no_dereference().first()
+            return models.Reporter.objects.first()
 
     query = """
         query ReporterQuery {

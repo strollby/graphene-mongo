@@ -12,13 +12,7 @@ from graphene.utils.str_converters import to_snake_case
 from graphene_mongo import MongoengineConnectionField
 from .converter import convert_mongoengine_field
 from .registry import Registry, get_global_registry, get_inputs_registry
-from .utils import (
-    ExecutorEnum,
-    get_model_fields,
-    get_query_fields,
-    is_valid_mongoengine_model,
-    sync_to_async,
-)
+from .utils import ExecutorEnum, get_model_fields, get_query_fields, is_valid_mongoengine_model
 
 
 def construct_fields(
@@ -242,9 +236,7 @@ def create_graphene_generic_class(object_type, option_type):
                 if to_snake_case(field) in cls._meta.model._fields_ordered:
                     required_fields.append(to_snake_case(field))
             required_fields = list(set(required_fields))
-            return await sync_to_async(
-                cls._meta.model.objects.no_dereference().only(*required_fields).get,
-            )(pk=id)
+            return cls._meta.model.objects.only(*required_fields).get(pk=id)
 
         def resolve_id(self, info):
             return str(self.id)

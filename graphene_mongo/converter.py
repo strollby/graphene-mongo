@@ -1,25 +1,24 @@
+from functools import singledispatch
 import sys
 
 import graphene
-import mongoengine
-
 from graphene.types.json import JSONString
 from graphene.utils.str_converters import to_camel_case
-from mongoengine.base import get_document
+import mongoengine
+
 from . import advanced_types
-from .utils import (
-    get_field_description,
-    get_field_is_required,
-    get_field_resolver,
-    ExecutorEnum,
-)
 from .field_resolvers import (
-    DynamicLazyFieldResolver,
     DynamicReferenceFieldResolver,
     ListFieldResolver,
     UnionFieldResolver,
 )
-from functools import singledispatch
+from .utils import (
+    ExecutorEnum,
+    get_field_description,
+    get_field_is_required,
+    get_field_resolver,
+    get_document,
+)
 
 
 class MongoEngineConversionError(Exception):
@@ -53,7 +52,6 @@ def convert_field_to_id(field, registry=None, executor: ExecutorEnum = ExecutorE
 
 
 @convert_mongoengine_field.register(mongoengine.IntField)
-@convert_mongoengine_field.register(mongoengine.LongField)
 @convert_mongoengine_field.register(mongoengine.SequenceField)
 def convert_field_to_int(field, registry=None, executor: ExecutorEnum = ExecutorEnum.SYNC):
     return graphene.Int(
@@ -235,15 +233,13 @@ def convert_field_to_union(field, registry=None, executor: ExecutorEnum = Execut
     Meta = type("Meta", (object,), {"types": tuple(_types)})
     _union = type(name, (graphene.Union,), {"Meta": Meta})
 
-    if isinstance(field, mongoengine.GenericReferenceField) or isinstance(
-        field, mongoengine.GenericLazyReferenceField
-    ):
+    if isinstance(field, mongoengine.GenericReferenceField):
         field_resolver = None
         required = False
         if field.db_field is not None:
             required = get_field_is_required(field, registry)
             resolver_function = getattr(
-                registry.get_type_for_model(field.owner_document, executor=executor),
+                registry.get_type_for_model(field.owner_document),
                 "resolve_" + field.db_field,
                 None,
             )
@@ -270,12 +266,11 @@ def convert_field_to_union(field, registry=None, executor: ExecutorEnum = Execut
 
 @convert_mongoengine_field.register(mongoengine.EmbeddedDocumentField)
 @convert_mongoengine_field.register(mongoengine.ReferenceField)
-@convert_mongoengine_field.register(mongoengine.CachedReferenceField)
 def convert_field_to_dynamic(field, registry=None, executor: ExecutorEnum = ExecutorEnum.SYNC):
     model = field.document_type
 
     def dynamic_type():
-        _type = registry.get_type_for_model(model, executor=executor)
+        _type = registry.get_type_for_model(model)
         if not _type:
             return None
         if isinstance(field, mongoengine.EmbeddedDocumentField):
@@ -289,7 +284,7 @@ def convert_field_to_dynamic(field, registry=None, executor: ExecutorEnum = Exec
         if field.db_field is not None:
             required = get_field_is_required(field, registry)
             resolver_function = getattr(
-                registry.get_type_for_model(field.owner_document, executor=executor),
+                registry.get_type_for_model(field.owner_document),
                 "resolve_" + field.db_field,
                 None,
             )
@@ -303,45 +298,6 @@ def convert_field_to_dynamic(field, registry=None, executor: ExecutorEnum = Exec
                     field=field, registry=registry, executor=executor
                 ),
                 default_async_resolver=DynamicReferenceFieldResolver.reference_resolver_async(
-                    field=field, registry=registry, executor=executor
-                ),
-                executor=executor,
-            ),
-            description=get_field_description(field, registry),
-            required=required,
-        )
-
-    return graphene.Dynamic(dynamic_type)
-
-
-@convert_mongoengine_field.register(mongoengine.LazyReferenceField)
-def convert_lazy_field_to_dynamic(field, registry=None, executor: ExecutorEnum = ExecutorEnum.SYNC):
-    model = field.document_type
-
-    def dynamic_type():
-        _type = registry.get_type_for_model(model, executor=executor)
-        if not _type:
-            return None
-        field_resolver = None
-        required = False
-        if field.db_field is not None:
-            required = get_field_is_required(field, registry)
-            resolver_function = getattr(
-                registry.get_type_for_model(field.owner_document, executor=executor),
-                "resolve_" + field.db_field,
-                None,
-            )
-            if resolver_function and callable(resolver_function):
-                field_resolver = resolver_function
-
-        return graphene.Field(
-            _type,
-            resolver=get_field_resolver(
-                field_resolver=field_resolver,
-                default_sync_resolver=DynamicLazyFieldResolver.lazy_resolver(
-                    field=field, registry=registry, executor=executor
-                ),
-                default_async_resolver=DynamicLazyFieldResolver.lazy_resolver_async(
                     field=field, registry=registry, executor=executor
                 ),
                 executor=executor,

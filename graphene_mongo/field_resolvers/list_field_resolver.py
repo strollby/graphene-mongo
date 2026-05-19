@@ -4,16 +4,13 @@ from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Optional, Union
 
+import mongoengine
 from bson import ObjectId
 from graphene.utils.str_converters import to_snake_case
-from graphene_mongo.utils import (
-    ExecutorEnum,
-    get_queried_union_types,
-    sync_to_async,
-)
-import mongoengine
 from mongoengine import Document
-from mongoengine.base import LazyReference, get_document
+from mongoengine.base import LazyReference
+
+from graphene_mongo.utils import ExecutorEnum, get_dataloader, get_queried_union_types, get_document
 
 
 class ListFieldResolver:
@@ -57,7 +54,7 @@ class ListFieldResolver:
         document, only_fields, document_ids = ListFieldResolver.__get_reference_objects_common(
             registry, model, executor, object_id_list, queried_fields
         )
-        return document.objects().no_dereference().only(*only_fields).filter(pk__in=document_ids)
+        return document.objects().only(*only_fields).filter(pk__in=document_ids)
 
     @staticmethod
     async def __get_reference_objects_async(
@@ -66,12 +63,15 @@ class ListFieldResolver:
         executor: ExecutorEnum,
         object_id_list: list[ObjectId],
         queried_fields: dict,
+        args: tuple,
     ):
         document, only_fields, document_ids = ListFieldResolver.__get_reference_objects_common(
             registry, model, executor, object_id_list, queried_fields
         )
-        return await sync_to_async(list)(
-            document.objects().no_dereference().only(*only_fields).filter(pk__in=document_ids)
+        return (
+            await get_dataloader(info=args[0])
+            .model(model_class=document, projections=only_fields)
+            .load_many(document_ids)
         )
 
     # ======================= DB CALLS: END =======================
@@ -106,17 +106,13 @@ class ListFieldResolver:
             return None
 
         choice_to_resolve = dict()
-        registry_string_map = (
-            registry._registry_string_map
-            if executor == ExecutorEnum.SYNC
-            else registry._registry_async_string_map
-        )
+        registry_string_map = registry._registry_string_map
         querying_union_types = get_queried_union_types(
             info=args[0], valid_gql_types=registry_string_map.keys()
         )
         to_resolve_models = dict()
         for each, queried_fields in querying_union_types.items():
-            to_resolve_models[registry_string_map[each]] = queried_fields
+            to_resolve_models[registry.get_type_for_model_string(each)] = queried_fields
         to_resolve_object_ids: list[ObjectId] = list()
         for each in to_resolve:
             if isinstance(each, LazyReference):
@@ -160,7 +156,12 @@ class ListFieldResolver:
                     queried_fields = to_resolve_models[model]
                     task = loop.create_task(
                         ListFieldResolver.__get_reference_objects_async(
-                            registry, model, executor, object_id_list, queried_fields
+                            registry,
+                            model,
+                            executor,
+                            object_id_list,
+                            queried_fields,
+                            args,
                         )
                     )
                 else:

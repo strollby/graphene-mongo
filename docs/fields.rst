@@ -15,9 +15,7 @@ Mongoengine Fields
 - FloatField
 - GenericReferenceField
 - IntField
-- LazyReferenceField
 - ListField
-- LongField
 - MapField
 - MultiPolygonField
 - ObjectIdField

@@ -5,28 +5,29 @@ from itertools import filterfalse
 from typing import Coroutine
 
 import bson
-import graphene
-import mongoengine
-import pymongo
 from bson import DBRef, ObjectId
+import graphene
 from graphene import Context
 from graphene.relay import ConnectionField
 from graphene.utils.str_converters import to_snake_case
 from graphql import GraphQLResolveInfo
 from graphql_relay import cursor_to_offset, from_global_id
-from mongoengine import QuerySet
+import mongoengine
+from mongoengine import AsyncQuerySet, QuerySet
 from promise import Promise
+import pymongo
 from pymongo.errors import OperationFailure
 
-from . import MongoengineConnectionField
+from .fields import MongoengineConnectionField
 from .registry import get_global_async_registry
 from .utils import (
     ExecutorEnum,
     connection_from_iterables,
     find_skip_and_limit,
+    get_document,
+    get_model_reference_fields,
     get_query_fields,
     has_page_info,
-    sync_to_async,
 )
 
 PYMONGO_VERSION = tuple(pymongo.version_tuple[:2])
@@ -56,6 +57,71 @@ class AsyncMongoengineConnectionField(MongoengineConnectionField):
     @property
     def fields(self):
         return super(AsyncMongoengineConnectionField, self).fields
+
+    def get_queryset(
+        self, model, info, required_fields=None, skip=None, limit=None, **args
+    ) -> AsyncQuerySet:
+        if required_fields is None:
+            required_fields = list()
+
+        if args:
+            reference_fields = get_model_reference_fields(self.model)
+            hydrated_references = {}
+            for arg_name, arg in args.copy().items():
+                if arg_name in reference_fields and not isinstance(
+                    arg, mongoengine.base.metaclasses.TopLevelDocumentMetaclass
+                ):
+                    try:
+                        reference_obj = reference_fields[arg_name].document_type(
+                            pk=from_global_id(arg)[1]
+                        )
+                    except TypeError:
+                        reference_obj = reference_fields[arg_name].document_type(pk=arg)
+                    hydrated_references[arg_name] = reference_obj
+                elif arg_name in self.model._fields_ordered and isinstance(
+                    getattr(self.model, arg_name),
+                    mongoengine.fields.GenericReferenceField,
+                ):
+                    try:
+                        reference_obj = get_document(
+                            self.registry.get_type_for_model_string(from_global_id(arg)[0])
+                        )(pk=from_global_id(arg)[1])
+                    except TypeError:
+                        reference_obj = get_document(arg["_cls"])(pk=arg["_ref"].id)
+                    hydrated_references[arg_name] = reference_obj
+                elif "__near" in arg_name and isinstance(
+                    getattr(self.model, arg_name.split("__")[0]),
+                    mongoengine.fields.PointField,
+                ):
+                    location = args.pop(arg_name, None)
+                    hydrated_references[arg_name] = location["coordinates"]
+                    if (arg_name.split("__")[0] + "__max_distance") not in args:
+                        hydrated_references[arg_name.split("__")[0] + "__max_distance"] = 10000
+                elif arg_name == "id":
+                    hydrated_references["id"] = from_global_id(args.pop("id", None))[1]
+            args.update(hydrated_references)
+
+        if self._get_queryset:
+            queryset_or_filters = self._get_queryset(model, info, **args)
+            if isinstance(queryset_or_filters, mongoengine.AsyncQuerySet):
+                return queryset_or_filters
+            elif isinstance(queryset_or_filters, mongoengine.QuerySet):
+                raise TypeError(
+                    "AsyncMongoengineConnectionField only accepts AsyncQuerySet in get_queryset(...)"
+                )
+            else:
+                args.update(queryset_or_filters)
+        if limit is not None:
+            return (
+                model.aobjects(**args)
+                .only(*required_fields)
+                .order_by(self.order_by)
+                .skip(skip if skip else 0)
+                .limit(limit)
+            )
+        elif skip is not None:
+            return model.aobjects(**args).only(*required_fields).order_by(self.order_by).skip(skip)
+        return model.aobjects(**args).only(*required_fields).order_by(self.order_by)
 
     @property
     def registry(self):
@@ -106,14 +172,14 @@ class AsyncMongoengineConnectionField(MongoengineConnectionField):
         if resolved is not None:
             items = resolved
 
-            if isinstance(items, QuerySet):
+            if isinstance(items, AsyncQuerySet):
                 try:
                     if last is not None:
-                        count = await sync_to_async(items.count)(with_limit_and_skip=False)
+                        count = await items.count(with_limit_and_skip=False)
                     else:
                         count = None
                 except OperationFailure:
-                    count = await sync_to_async(len)(items)
+                    count = len(await items.to_list())
             else:
                 count = len(items)
 
@@ -121,22 +187,20 @@ class AsyncMongoengineConnectionField(MongoengineConnectionField):
                 first=first, last=last, after=after, before=before, count=count
             )
 
-            if isinstance(items, QuerySet):
+            if isinstance(items, AsyncQuerySet):
                 if limit:
-                    _base_query: QuerySet = await sync_to_async(items.skip)(skip)
-                    items = await sync_to_async(_base_query.limit)(limit)
+                    _base_query: AsyncQuerySet = await items.skip(skip)
+                    items = await _base_query.limit(limit)
                     has_next_page = (
                         (
-                            await sync_to_async(len)(
-                                _base_query.skip(skip + limit).only("id").limit(1)
-                            )
+                            len(await _base_query.skip(skip + limit).only("id").limit(1).to_list())
                             != 0
                         )
                         if requires_page_info
                         else False
                     )
                 elif skip:
-                    items = await sync_to_async(items.skip)(skip)
+                    items = items.skip(skip)
             else:
                 if limit:
                     _base_query = items
@@ -146,7 +210,7 @@ class AsyncMongoengineConnectionField(MongoengineConnectionField):
                     )
                 elif skip:
                     items = items[skip:]
-            iterables = await sync_to_async(list)(items)
+            iterables = await items.to_list()
             list_length = len(iterables)
 
         elif callable(getattr(self.model, "objects", None)):
@@ -161,7 +225,7 @@ class AsyncMongoengineConnectionField(MongoengineConnectionField):
                     elif skip:
                         args["pk__in"] = args["pk__in"][skip:]
                     iterables = self.get_queryset(self.model, info, required_fields, **args)
-                    iterables = await sync_to_async(list)(iterables)
+                    iterables = await iterables.to_list()
                 else:
                     # If there is no ids to fetch, No need of DB call
                     iterables = []
@@ -182,20 +246,11 @@ class AsyncMongoengineConnectionField(MongoengineConnectionField):
                 for key in args.copy():
                     if key not in self.model._fields_ordered:
                         args_copy.pop(key)
-                    elif (
-                        isinstance(getattr(self.model, key), mongoengine.fields.ReferenceField)
-                        or isinstance(
-                            getattr(self.model, key),
-                            mongoengine.fields.GenericReferenceField,
-                        )
-                        or isinstance(
-                            getattr(self.model, key),
-                            mongoengine.fields.LazyReferenceField,
-                        )
-                        or isinstance(
-                            getattr(self.model, key),
-                            mongoengine.fields.CachedReferenceField,
-                        )
+                    elif isinstance(
+                        getattr(self.model, key), mongoengine.fields.ReferenceField
+                    ) or isinstance(
+                        getattr(self.model, key),
+                        mongoengine.fields.GenericReferenceField,
                     ):
                         if not isinstance(args_copy[key], ObjectId):
                             _from_global_id = from_global_id(args_copy[key])[1]
@@ -207,16 +262,7 @@ class AsyncMongoengineConnectionField(MongoengineConnectionField):
                         if getattr(args_copy[key], "value", None):
                             args_copy[key] = args_copy[key].value
 
-                if PYMONGO_VERSION >= (3, 7):
-                    if hasattr(self.model, "_meta") and "db_alias" in self.model._meta:
-                        db = mongoengine.get_db(self.model._meta["db_alias"])
-                    else:
-                        db = mongoengine.get_db()
-                    count = await sync_to_async(
-                        db[self.model._get_collection_name()].count_documents
-                    )(args_copy)
-                else:
-                    count = await sync_to_async(self.model.objects(args_copy).count)()
+                count = await self.model.aobjects(**args_copy).count()
                 if count != 0:
                     skip, limit = find_skip_and_limit(
                         first=first, after=after, last=last, before=before, count=count
@@ -224,7 +270,7 @@ class AsyncMongoengineConnectionField(MongoengineConnectionField):
                     iterables = self.get_queryset(
                         self.model, info, required_fields, skip, limit, **args
                     )
-                    iterables = await sync_to_async(list)(iterables)
+                    iterables = await iterables.to_list()
                     list_length = len(iterables)
                     if isinstance(info, GraphQLResolveInfo):
                         if not info.context:
@@ -247,7 +293,7 @@ class AsyncMongoengineConnectionField(MongoengineConnectionField):
             elif skip:
                 items = items[skip:]
             iterables = items
-            iterables = await sync_to_async(list)(iterables)
+            iterables = await iterables.to_list()
             list_length = len(iterables)
 
         if requires_page_info and count:

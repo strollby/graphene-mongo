@@ -1,6 +1,10 @@
-import os
+from collections.abc import AsyncGenerator
 from datetime import datetime
+import os
+from typing import Any
 
+import mongoengine
+from mongomock import gridfs
 import pytest
 
 from .models import (
@@ -21,6 +25,7 @@ from .models import (
 )
 
 current_dirname = os.path.dirname(os.path.abspath(__file__))
+DB_NAME = "graphene-mongo-test"
 
 
 @pytest.fixture()
@@ -179,3 +184,14 @@ def fixtures():
     child3.save()
     child4.save()
     return True
+
+
+@pytest.fixture(scope="session", autouse=True)
+async def setup() -> AsyncGenerator[None, Any]:
+    """
+    Handles the database connection lifecycle for the entire session.
+    """
+    gridfs.enable_gridfs_integration()
+
+    mongoengine.connect(DB_NAME)
+    await mongoengine.async_connect(DB_NAME)

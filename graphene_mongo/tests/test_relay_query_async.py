@@ -18,7 +18,7 @@ async def test_should_query_reporter_async(fixtures):
         reporter = graphene.Field(nodes_async.ReporterAsyncNode)
 
         async def resolve_reporter(self, *args, **kwargs):
-            return models.Reporter.objects.no_dereference().first()
+            return models.Reporter.objects.first()
 
     query = """
         query ReporterQuery {
@@ -715,7 +715,6 @@ async def test_should_lazy_reference_async(fixtures):
         parents = AsyncMongoengineConnectionField(nodes_async.ParentWithRelationshipAsyncNode)
 
     schema = graphene.Schema(query=Query)
-    print(schema)
 
     query = """
     query {
@@ -842,7 +841,7 @@ async def test_should_get_queryset_returns_dict_filters_async(fixtures):
 @pytest.mark.asyncio
 async def test_should_get_queryset_returns_qs_filters_async(fixtures):
     def get_queryset(model, info, **args):
-        return model.objects(headline="World")
+        return model.aobjects(headline="World")
 
     class Query(graphene.ObjectType):
         node = Node.Field()

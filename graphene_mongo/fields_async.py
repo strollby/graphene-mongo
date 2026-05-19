@@ -214,17 +214,22 @@ class AsyncMongoengineConnectionField(MongoengineConnectionField):
             list_length = len(iterables)
 
         elif callable(getattr(self.model, "objects", None)):
-            if "pk__in" in args and args["pk__in"]:
+            if "pk__in" in args:
                 count = len(args["pk__in"])
                 skip, limit = find_skip_and_limit(
                     first=first, last=last, after=after, before=before, count=count
                 )
-                if limit:
-                    args["pk__in"] = args["pk__in"][skip : skip + limit]
-                elif skip:
-                    args["pk__in"] = args["pk__in"][skip:]
-                iterables = self.get_queryset(self.model, info, required_fields, **args)
-                iterables = await iterables.to_list()
+                if args["pk__in"]:
+                    if limit:
+                        args["pk__in"] = args["pk__in"][skip : skip + limit]
+                    elif skip:
+                        args["pk__in"] = args["pk__in"][skip:]
+                    iterables = self.get_queryset(self.model, info, required_fields, **args)
+                    iterables = await iterables.to_list()
+                else:
+                    # If there is no ids to fetch, No need of DB call
+                    iterables = []
+
                 list_length = len(iterables)
                 if isinstance(info, GraphQLResolveInfo):
                     if not info.context:
@@ -257,12 +262,7 @@ class AsyncMongoengineConnectionField(MongoengineConnectionField):
                         if getattr(args_copy[key], "value", None):
                             args_copy[key] = args_copy[key].value
 
-                if PYMONGO_VERSION >= (3, 7):
-                    count = await (await mongoengine.async_get_db())[
-                        self.model._get_collection_name()
-                    ].count_documents(args_copy)
-                else:
-                    count = await self.model.aobjects(args_copy).count()
+                count = await self.model.aobjects(**args_copy).count()
                 if count != 0:
                     skip, limit = find_skip_and_limit(
                         first=first, after=after, last=last, before=before, count=count

@@ -424,16 +424,21 @@ class MongoengineConnectionField(ConnectionField):
             list_length = len(iterables)
 
         elif callable(getattr(self.model, "objects", None)):
-            if "pk__in" in args and args["pk__in"]:
+            if "pk__in" in args:
                 count = len(args["pk__in"])
                 skip, limit = find_skip_and_limit(
                     first=first, last=last, after=after, before=before, count=count
                 )
-                if limit:
-                    args["pk__in"] = args["pk__in"][skip : skip + limit]
-                elif skip:
-                    args["pk__in"] = args["pk__in"][skip:]
-                iterables = self.get_queryset(self.model, info, required_fields, **args)
+                if args["pk__in"]:
+                    if limit:
+                        args["pk__in"] = args["pk__in"][skip : skip + limit]
+                    elif skip:
+                        args["pk__in"] = args["pk__in"][skip:]
+                    iterables = self.get_queryset(self.model, info, required_fields, **args)
+                else:
+                    # If there is no ids to fetch, No need of DB call
+                    iterables = []
+
                 list_length = len(iterables)
                 if isinstance(info, GraphQLResolveInfo):
                     if not info.context:
@@ -477,15 +482,10 @@ class MongoengineConnectionField(ConnectionField):
 
                 if PYMONGO_VERSION >= (3, 7):
                     if hasattr(self.model, "_meta") and "db_alias" in self.model._meta:
-                        count = (
-                            mongoengine.get_db(self.model._meta["db_alias"])[
-                                self.model._get_collection_name()
-                            ]
-                        ).count_documents(args_copy)
+                        db = mongoengine.get_db(self.model._meta["db_alias"])
                     else:
-                        count = (
-                            mongoengine.get_db()[self.model._get_collection_name()]
-                        ).count_documents(args_copy)
+                        db = mongoengine.get_db()
+                    count = db[self.model._get_collection_name()].count_documents(args_copy)
                 else:
                     count = self.model.objects(args_copy).count()
                 if count != 0:

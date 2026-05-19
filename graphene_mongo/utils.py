@@ -17,9 +17,12 @@ from graphql import (
     GraphQLSkipDirective,
     VariableNode,
 )
+from graphql import GraphQLResolveInfo
 from graphql_relay.connection.array_connection import offset_to_cursor
 import mongoengine
-from mongoengine.base import _DocumentRegistry as DocumentRegistry
+from mongoengine.base.common import _DocumentRegistry
+
+from .dataloader import MongoDataLoader
 
 
 class ExecutorEnum(enum.Enum):
@@ -32,7 +35,7 @@ def get_document(model):
     if not isinstance(model, str):
         model_name = model.__name__
 
-    return DocumentRegistry.get(model_name)
+    return _DocumentRegistry.get(model_name)
 
 
 def get_model_fields(model, excluding=None):
@@ -439,7 +442,7 @@ def get_field_resolver(
     field_resolver: Optional[Callable] = None,
 ) -> Callable:
     """
-    Helpr function to get the resolver for a field
+    Helper function to get the resolver for a field
 
     Args:
         field_resolver: user defined resolver (optional)
@@ -457,3 +460,18 @@ def get_field_resolver(
         return default_async_resolver
 
     return default_sync_resolver
+
+
+DATALOADER_CONTEXT_ATTRIBUTE = "_mongo_dataloader"
+
+
+def get_dataloader(info: GraphQLResolveInfo) -> MongoDataLoader:
+    """
+    Get the MongoDataLoader() from info context
+    """
+
+    data_point = info.context or info.schema
+
+    if not hasattr(data_point, DATALOADER_CONTEXT_ATTRIBUTE):
+        setattr(data_point, DATALOADER_CONTEXT_ATTRIBUTE, MongoDataLoader(info=info))
+    return getattr(data_point, DATALOADER_CONTEXT_ATTRIBUTE)

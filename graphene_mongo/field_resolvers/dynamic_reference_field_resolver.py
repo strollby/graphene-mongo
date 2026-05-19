@@ -3,12 +3,9 @@ from typing import Optional, Union
 
 from bson import ObjectId
 from graphene.utils.str_converters import to_snake_case
-from graphene_mongo.utils import (
-    ExecutorEnum,
-    get_query_fields,
-    sync_to_async,
-)
 from mongoengine import Document, ReferenceField
+
+from graphene_mongo.utils import ExecutorEnum, get_dataloader, get_query_fields
 
 
 class DynamicReferenceFieldResolver:
@@ -21,7 +18,7 @@ class DynamicReferenceFieldResolver:
             return None
 
         queried_fields = list()
-        _type = registry.get_type_for_model(field.document_type, executor=executor)
+        _type = registry.get_type_for_model(field.document_type)
         filter_args = list()
         if _type._meta.filter_fields:
             for key, values in _type._meta.filter_fields.items():
@@ -66,7 +63,11 @@ class DynamicReferenceFieldResolver:
             )
             if not isinstance(result, tuple):
                 return result
-            document, only_fields, pk = result
-            return await sync_to_async(document.objects.only(*only_fields).get)(pk=pk)
+            model, only_fields, id = result
+            return (
+                await get_dataloader(info=args[0])
+                .model(model_class=model, projections=only_fields)
+                .load(id)
+            )
 
         return resolver

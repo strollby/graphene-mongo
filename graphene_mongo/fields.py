@@ -301,7 +301,7 @@ class MongoengineConnectionField(ConnectionField):
                 ):
                     try:
                         reference_obj = get_document(
-                            self.registry._registry_string_map[from_global_id(arg)[0]]
+                            self.registry.get_type_for_model_string(from_global_id(arg)[0])
                         )(pk=from_global_id(arg)[1])
                     except TypeError:
                         reference_obj = get_document(arg["_cls"])(pk=arg["_ref"].id)

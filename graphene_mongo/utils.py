@@ -1,13 +1,10 @@
 from __future__ import unicode_literals
 
 from collections import OrderedDict
-from concurrent.futures import ThreadPoolExecutor
 import enum
 import inspect
-from typing import Any, Callable, Optional, Union
+from typing import Callable, Optional
 
-from asgiref.sync import SyncToAsync
-from asgiref.sync import sync_to_async as asgiref_sync_to_async
 from graphene import Node
 from graphene.utils.trim_docstring import trim_docstring
 from graphql import (
@@ -411,30 +408,6 @@ def connection_from_iterables(
     )
 
 
-def sync_to_async(
-    func: Callable = None,
-    thread_sensitive: bool = False,
-    executor: Any = None,  # noqa
-) -> Union[SyncToAsync, Callable[[Callable[..., Any]], SyncToAsync]]:
-    """
-    Wrapper over sync_to_async from asgiref.sync
-    Defaults to thread insensitive with ThreadPoolExecutor of n workers
-    Args:
-        func:
-            Function to be converted to coroutine
-        thread_sensitive:
-            If the operation is thread sensitive and should run in synchronous thread
-        executor:
-            Threadpool executor, if thread_sensitive=False
-
-    Returns:
-        coroutine version of func
-    """
-    if executor is None:
-        executor = ThreadPoolExecutor()
-    return asgiref_sync_to_async(func=func, thread_sensitive=thread_sensitive, executor=executor)
-
-
 def get_field_resolver(
     default_async_resolver: Callable,
     default_sync_resolver: Callable,
@@ -467,11 +440,12 @@ DATALOADER_CONTEXT_ATTRIBUTE = "_mongo_dataloader"
 
 def get_dataloader(info: GraphQLResolveInfo) -> MongoDataLoader:
     """
-    Get the MongoDataLoader() from info context
+    Get the MongoDataLoader() from info context or operation
     """
 
-    data_point = info.context or info.schema
+    data_point = info.context or info.operation
 
     if not hasattr(data_point, DATALOADER_CONTEXT_ATTRIBUTE):
         setattr(data_point, DATALOADER_CONTEXT_ATTRIBUTE, MongoDataLoader(info=info))
+
     return getattr(data_point, DATALOADER_CONTEXT_ATTRIBUTE)

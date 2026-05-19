@@ -8,8 +8,8 @@ class Registry(object):
     def __init__(self, executor: ExecutorEnum):
         self.executor = executor
         self._registry = {}
-        self._registry_document_map = {}
-        self._registry_string_map = {}
+        self._registry_string_map: dict[str, str] = {}
+        self._registry_document_string_map = {}
         self._registry_enum = {}
 
     def register(self, cls):
@@ -26,7 +26,7 @@ class Registry(object):
         assert cls._meta.registry == self, "Registry for a Model have to match."
         self._registry[cls._meta.model] = cls
         if issubclass(cls._meta.model, Document):
-            self._registry_document_map[cls._meta.model.__name__] = cls
+            self._registry_document_string_map[cls._meta.model.__name__] = cls
         self._registry_string_map[cls.__name__] = cls._meta.model.__name__
 
         # Rescan all fields
@@ -49,10 +49,13 @@ class Registry(object):
     def get_type_for_model(self, model):
         return self._registry.get(model)
 
+    def get_type_for_model_string(self, model_string: str) -> str | None:
+        return self._registry_string_map.get(model_string)
+
     def get_type_for_document_model(self, model):
         if not issubclass(model, Document):
             raise TypeError(f"{model} is not a Document")
-        return self._registry_document_map.get(model.__name__)
+        return self._registry_document_string_map.get(model.__name__)
 
     def check_enum_already_exist(self, cls):
         return cls in self._registry_enum

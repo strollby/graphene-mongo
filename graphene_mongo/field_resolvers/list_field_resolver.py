@@ -112,7 +112,7 @@ class ListFieldResolver:
         )
         to_resolve_models = dict()
         for each, queried_fields in querying_union_types.items():
-            to_resolve_models[registry_string_map[each]] = queried_fields
+            to_resolve_models[registry.get_type_for_model_string(each)] = queried_fields
         to_resolve_object_ids: list[ObjectId] = list()
         for each in to_resolve:
             if isinstance(each, LazyReference):

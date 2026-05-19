@@ -81,6 +81,5 @@ async def test_should_update(fixtures):
     expected = {"updateEditor": {"editor": {"firstName": "Tony"}}}
     schema = graphene.Schema(query=Query, mutation=Mutation)
     result = await schema.execute_async(query)
-    # print(result.data)
     assert not result.errors
     assert result.data == expected

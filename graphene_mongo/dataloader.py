@@ -12,7 +12,7 @@ Usage:
         async def dataloader_resolver(
             cls, info: GraphQLResolveInfo, ids: list[ObjectId], projections: list[str] | None = None
         ):
-            docs = QS(User, auto_deference=False).filter(id__in=ids)
+            docs = User.aobjects.filter(id__in=ids)
             if projections:
                 docs = docs.only(*projections)
             return await docs.to_list()

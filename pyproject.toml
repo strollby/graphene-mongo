@@ -1,7 +1,7 @@
 [tool.poetry]
 name = "graphene-mongo"
 packages = [{ include = "graphene_mongo" }]
-version = "0.4.4"
+version = "0.5.0"
 description = "Graphene Mongoengine integration"
 authors = [
     "Abaw Chen <abaw.chen@gmail.com>",
@@ -33,7 +33,7 @@ graphene = ">=3.1.1"
 graphene-federation = ">=3.1.5"
 promise = ">=2.3"
 mongoengine = { rev = "v0.30.0-alpha.2", git = "https://github.com/strollby/mongoengine" }
-asgiref = "^3.7.2"
+aiodataloader = "^0.4.3"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "*"

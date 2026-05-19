@@ -207,7 +207,6 @@ def test_update_bike_mutation():
     request = factory.post(reverse("graphql-query"))
     client = Client(schema)
     result = client.execute(query, context=request)
-    print(result)
     assert result == expected
 
 

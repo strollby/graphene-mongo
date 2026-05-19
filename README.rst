@@ -71,7 +71,7 @@ Then you can simply query the schema:
             }
         }
     '''
-    result = await schema.execute_async(query)
+    result = await schema.execute_async(query, context_value=dict())
 
 To learn more check out the `Flask MongoEngine example <https://github.com/graphql-python/graphene-mongo/tree/master/examples/flask_mongoengine>`__
 

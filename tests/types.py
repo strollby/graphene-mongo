@@ -1,5 +1,5 @@
 from . import models
-from graphene_mongo.types import (
+from graphene_mongo.synchronous.types import (
     MongoengineObjectType,
     MongoengineInterfaceType,
     MongoengineInputType,

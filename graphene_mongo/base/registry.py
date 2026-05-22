@@ -1,7 +1,7 @@
 from graphene import Enum
 from mongoengine import Document
 
-from graphene_mongo.utils import ExecutorEnum
+from graphene_mongo.base.utils import ExecutorEnum
 
 
 class Registry(object):
@@ -13,8 +13,8 @@ class Registry(object):
         self._registry_enum = {}
 
     def register(self, cls):
-        from .types import GrapheneMongoengineObjectTypes
-        from .types_async import AsyncGrapheneMongoengineObjectTypes
+        from ..synchronous.types import GrapheneMongoengineObjectTypes
+        from ..asynchronous.types import AsyncGrapheneMongoengineObjectTypes
 
         assert issubclass(cls, GrapheneMongoengineObjectTypes) or issubclass(
             cls, AsyncGrapheneMongoengineObjectTypes

@@ -58,8 +58,8 @@ class ModelLoader(DataLoader, Generic[T]):
         self._model = model
         self._projections: set[str] = projections
 
-        from .registry import get_global_async_registry
-        from .types_async import AsyncMongoengineObjectType
+        from ..base.registry import get_global_async_registry
+        from .types import AsyncMongoengineObjectType
 
         registry = get_global_async_registry()
         self._gql_type: AsyncMongoengineObjectType = registry.get_type_for_document_model(model)

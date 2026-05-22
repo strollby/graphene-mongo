@@ -7,7 +7,8 @@ import mongoengine
 from mongoengine import Document
 from mongoengine.base import LazyReference
 
-from graphene_mongo.utils import ExecutorEnum, get_dataloader, get_document, get_queried_union_types
+from graphene_mongo.base.utils import ExecutorEnum, get_document, get_queried_union_types
+from graphene_mongo.asynchronous.utils import get_dataloader
 
 
 class UnionFieldResolver:
@@ -15,7 +16,7 @@ class UnionFieldResolver:
     def __reference_resolver_common(
         field, registry, executor: ExecutorEnum, root, *args, **kwargs
     ) -> Optional[Union[tuple[Document, set[str], ObjectId], Document]]:
-        from graphene_mongo.converter import convert_mongoengine_field
+        from graphene_mongo.base.converter import convert_mongoengine_field
 
         de_referenced: LazyReference = getattr(root, field.name or field.db_name)
         if not de_referenced:

@@ -5,7 +5,8 @@ from bson import ObjectId
 from graphene.utils.str_converters import to_snake_case
 from mongoengine import Document, ReferenceField
 
-from graphene_mongo.utils import ExecutorEnum, get_dataloader, get_query_fields
+from graphene_mongo.base.utils import ExecutorEnum, get_query_fields
+from graphene_mongo.asynchronous.utils import get_dataloader
 
 
 class DynamicReferenceFieldResolver:

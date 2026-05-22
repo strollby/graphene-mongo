@@ -15,9 +15,9 @@ from .models import (
 )
 from graphene_mongo import registry
 from graphene_mongo import advanced_types
-from graphene_mongo.converter import convert_mongoengine_field
-from graphene_mongo.fields import MongoengineConnectionField
-from graphene_mongo.types import MongoengineObjectType
+from graphene_mongo.base.converter import convert_mongoengine_field
+from graphene_mongo.synchronous.fields import MongoengineConnectionField
+from graphene_mongo.synchronous.types import MongoengineObjectType
 
 
 def assert_conversion(mongoengine_field, graphene_field, *args, **kwargs):

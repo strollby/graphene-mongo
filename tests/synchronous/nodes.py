@@ -4,7 +4,7 @@ from graphene.relay import Node
 from .. import models
 from .. import types  # noqa: F401
 from ..models import ProfessorMetadata
-from graphene_mongo.types import MongoengineObjectType
+from graphene_mongo.synchronous.types import MongoengineObjectType
 
 
 class PublisherNode(MongoengineObjectType):

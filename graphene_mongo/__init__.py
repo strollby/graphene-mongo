@@ -1,7 +1,8 @@
-from .fields import MongoengineConnectionField
-from .fields_async import AsyncMongoengineConnectionField
-from .types import MongoengineInputType, MongoengineInterfaceType, MongoengineObjectType
-from .types_async import AsyncMongoengineObjectType
+from .synchronous.fields import MongoengineConnectionField
+from .asynchronous.fields import AsyncMongoengineConnectionField
+from .synchronous.types import MongoengineInputType, MongoengineInterfaceType, MongoengineObjectType
+from .asynchronous.types import AsyncMongoengineObjectType
+from .base import registry, advanced_types
 
 __version__ = "0.5.0"
 

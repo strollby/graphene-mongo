@@ -16,7 +16,7 @@ from ..models import (
 )
 from .utils import with_local_registry
 from graphene_mongo import registry
-from graphene_mongo.types import MongoengineObjectType, MongoengineObjectTypeOptions
+from graphene_mongo.synchronous.types import MongoengineObjectType, MongoengineObjectTypeOptions
 
 registry.reset_global_registry()
 

@@ -10,7 +10,8 @@ from graphene.utils.str_converters import to_snake_case
 from mongoengine import Document
 from mongoengine.base import LazyReference
 
-from graphene_mongo.utils import ExecutorEnum, get_dataloader, get_queried_union_types, get_document
+from graphene_mongo.base.utils import ExecutorEnum, get_queried_union_types, get_document
+from graphene_mongo.asynchronous.utils import get_dataloader
 
 
 class ListFieldResolver:
@@ -22,7 +23,7 @@ class ListFieldResolver:
         object_id_list: list[ObjectId],
         queried_fields: dict,
     ) -> tuple[Document, set[str], list[ObjectId]]:
-        from graphene_mongo.converter import convert_mongoengine_field
+        from graphene_mongo.base.converter import convert_mongoengine_field
 
         document = get_document(model)
         document_field = mongoengine.ReferenceField(document)

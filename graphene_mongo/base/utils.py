@@ -19,7 +19,6 @@ from graphql_relay.connection.array_connection import offset_to_cursor
 import mongoengine
 from mongoengine.base.common import _DocumentRegistry
 
-from .dataloader import MongoDataLoader
 
 
 class ExecutorEnum(enum.Enum):
@@ -435,17 +434,3 @@ def get_field_resolver(
     return default_sync_resolver
 
 
-DATALOADER_CONTEXT_ATTRIBUTE = "_mongo_dataloader"
-
-
-def get_dataloader(info: GraphQLResolveInfo) -> MongoDataLoader:
-    """
-    Get the MongoDataLoader() from info context or operation
-    """
-
-    data_point = info.context or info.operation
-
-    if not hasattr(data_point, DATALOADER_CONTEXT_ATTRIBUTE):
-        setattr(data_point, DATALOADER_CONTEXT_ATTRIBUTE, MongoDataLoader(info=info))
-
-    return getattr(data_point, DATALOADER_CONTEXT_ATTRIBUTE)

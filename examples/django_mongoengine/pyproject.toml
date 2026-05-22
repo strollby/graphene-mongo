@@ -1,0 +1,24 @@
+[project]
+name = "graphene-mongo-django-example"
+version = "0.1.0"
+requires-python = ">=3.10"
+dependencies = [
+    "Django>=5.0",
+    "graphene-django>=3.2.2",
+    "graphene-mongo",
+    "mongoengine",
+    "mongomock>=4.1.2",
+    "pytest-django>=4.8",
+]
+
+[tool.uv.sources]
+graphene-mongo = { path = "../.." }
+mongoengine = { git = "https://github.com/strollby/mongoengine", rev = "v0.30.0-alpha.2" }
+
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "bike_catalog.settings_test"
+python_files = ["tests.py", "test_*.py", "*_tests.py"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"

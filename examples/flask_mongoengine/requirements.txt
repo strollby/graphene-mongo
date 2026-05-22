@@ -1,5 +1,0 @@
-Flask>=3.0.0
-graphene-mongo
-mongoengine>=0.28.0
-mongomock>=4.1.2
-pytest>=8.0

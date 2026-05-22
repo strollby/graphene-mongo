@@ -3,20 +3,21 @@ import pytest
 
 from graphene.relay import Node
 
-from .models import Article, Editor
+from ..models import Article, Editor
 from .nodes import ArticleNode, EditorNode
+from ..types import ArticleInput, EditorInput
 
 
 @pytest.mark.asyncio
 async def test_should_create(fixtures):
     class CreateArticle(graphene.Mutation):
         class Arguments:
-            headline = graphene.String()
+            article = ArticleInput(required=True)
 
         article = graphene.Field(ArticleNode)
 
-        async def mutate(self, info, headline):
-            article = Article(headline=headline)
+        async def mutate(self, info, article):
+            article = Article(**article)
             article.save()
 
             return CreateArticle(article=article)
@@ -30,7 +31,7 @@ async def test_should_create(fixtures):
     query = """
         mutation ArticleCreator {
             createArticle(
-                headline: "My Article"
+                article: {headline: "My Article"}
             ) {
                 article {
                     headline
@@ -49,16 +50,18 @@ async def test_should_create(fixtures):
 async def test_should_update(fixtures):
     class UpdateEditor(graphene.Mutation):
         class Arguments:
-            id = graphene.ID()
-            first_name = graphene.String()
+            id = graphene.ID(required=True)
+            editor = EditorInput(required=True)
 
         editor = graphene.Field(EditorNode)
 
-        async def mutate(self, info, id, first_name):
-            editor = Editor.objects.get(id=id)
-            editor.first_name = first_name
-            editor.save()
-            return UpdateEditor(editor=editor)
+        async def mutate(self, info, id, editor):
+            editor_to_update = Editor.objects.get(id=id)
+            for key, value in editor.items():
+                if value:
+                    setattr(editor_to_update, key, value)
+            editor_to_update.save()
+            return UpdateEditor(editor=editor_to_update)
 
     class Query(graphene.ObjectType):
         node = Node.Field()
@@ -70,15 +73,18 @@ async def test_should_update(fixtures):
         mutation EditorUpdater {
             updateEditor(
                 id: "1"
-                firstName: "Tony"
+                editor: {
+                    lastName: "Lane"
+                }
             ) {
                 editor {
                     firstName
+                    lastName
                 }
             }
         }
     """
-    expected = {"updateEditor": {"editor": {"firstName": "Tony"}}}
+    expected = {"updateEditor": {"editor": {"firstName": "Penny", "lastName": "Lane"}}}
     schema = graphene.Schema(query=Query, mutation=Mutation)
     result = await schema.execute_async(query)
     assert not result.errors

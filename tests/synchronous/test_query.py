@@ -5,8 +5,8 @@ import os
 import graphene
 import pytest
 
-from . import models
-from . import types
+from .. import models
+from .. import types
 
 
 @pytest.mark.asyncio

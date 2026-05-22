@@ -2,7 +2,7 @@ from graphene import Field, Int, Interface, ObjectType
 from graphene.relay import Node, is_node
 from pytest import raises
 
-from .models import (
+from ..models import (
     Article,
     Bench,
     Child,

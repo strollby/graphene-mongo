@@ -1,9 +1,9 @@
 import graphene
 from graphene.relay import Node
 
-from . import models
-from . import types  # noqa: F401
-from .models import ProfessorMetadata
+from .. import models
+from .. import types  # noqa: F401
+from ..models import ProfessorMetadata
 from graphene_mongo.types_async import AsyncMongoengineObjectType
 
 

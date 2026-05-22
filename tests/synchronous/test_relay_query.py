@@ -7,7 +7,7 @@ import pytest
 from graphene.relay import Node
 from graphql_relay.node.node import to_global_id
 
-from . import models
+from .. import models
 from . import nodes
 from graphene_mongo.fields import MongoengineConnectionField
 from graphene_mongo.types import MongoengineObjectType

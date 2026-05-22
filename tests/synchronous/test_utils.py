@@ -1,7 +1,7 @@
 import graphene
 
-from . import types
-from .models import Article, Child, Reporter
+from .. import types
+from ..models import Article, Child, Reporter
 from graphene_mongo.utils import get_model_fields, get_query_fields, is_valid_mongoengine_model
 
 

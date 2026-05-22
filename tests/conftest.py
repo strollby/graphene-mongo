@@ -25,7 +25,7 @@ from .models import (
 )
 
 current_dirname = os.path.dirname(os.path.abspath(__file__))
-DB_NAME = "graphene-mongo-test"
+DB_NAME = "graphene-mongo-test" + (os.environ.get("TOX_ENV_NAME") or "").lower()
 
 
 @pytest.fixture()

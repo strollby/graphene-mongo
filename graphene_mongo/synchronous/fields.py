@@ -36,10 +36,11 @@ from ..base.utils import (
     ExecutorEnum,
     connection_from_iterables,
     find_skip_and_limit,
+    get_document,
     get_model_reference_fields,
     get_query_fields,
+    get_select_related_paths,
     has_page_info,
-    get_document,
 )
 
 PYMONGO_VERSION = tuple(pymongo.version_tuple[:2])
@@ -324,17 +325,17 @@ class MongoengineConnectionField(ConnectionField):
                 return queryset_or_filters
             else:
                 args.update(queryset_or_filters)
+        queried_fields = get_query_fields(info) if isinstance(info, GraphQLResolveInfo) else {}
+        related = get_select_related_paths(model, queried_fields)
+
+        qs = model.objects(**args).only(*required_fields).order_by(self.order_by)
+        if related:
+            qs = qs.select_related(*related)
         if limit is not None:
-            return (
-                model.objects(**args)
-                .only(*required_fields)
-                .order_by(self.order_by)
-                .skip(skip if skip else 0)
-                .limit(limit)
-            )
+            return qs.skip(skip if skip else 0).limit(limit)
         elif skip is not None:
-            return model.objects(**args).only(*required_fields).order_by(self.order_by).skip(skip)
-        return model.objects(**args).only(*required_fields).order_by(self.order_by)
+            return qs.skip(skip)
+        return qs
 
     def default_resolver(self, _root, info, required_fields=None, resolved=None, **args):
         if required_fields is None:
@@ -463,21 +464,8 @@ class MongoengineConnectionField(ConnectionField):
                         if getattr(args_copy[key], "value", None):
                             args_copy[key] = args_copy[key].value
 
-                if PYMONGO_VERSION >= (3, 7):
-                    if hasattr(self.model, "_meta") and "db_alias" in self.model._meta:
-                        db = mongoengine.get_db(self.model._meta["db_alias"])
-                    else:
-                        db = mongoengine.get_db()
-                    count = db[self.model._get_collection_name()].count_documents(args_copy)
-                else:
-                    count = self.model.objects(args_copy).count()
-                if count != 0:
-                    skip, limit = find_skip_and_limit(
-                        first=first, after=after, last=last, before=before, count=count
-                    )
-                    iterables = self.get_queryset(
-                        self.model, info, required_fields, skip, limit, **args
-                    )
+                if first is None and last is None and before is None and after is None:
+                    iterables = self.get_queryset(self.model, info, required_fields, **args)
                     list_length = len(iterables)
                     if isinstance(info, GraphQLResolveInfo):
                         if not info.context:
@@ -485,6 +473,29 @@ class MongoengineConnectionField(ConnectionField):
                         info.context.queryset = self.get_queryset(
                             self.model, info, required_fields, **args
                         )
+                else:
+                    if PYMONGO_VERSION >= (3, 7):
+                        if hasattr(self.model, "_meta") and "db_alias" in self.model._meta:
+                            db = mongoengine.get_db(self.model._meta["db_alias"])
+                        else:
+                            db = mongoengine.get_db()
+                        count = db[self.model._get_collection_name()].count_documents(args_copy)
+                    else:
+                        count = self.model.objects(args_copy).count()
+                    if count != 0:
+                        skip, limit = find_skip_and_limit(
+                            first=first, after=after, last=last, before=before, count=count
+                        )
+                        iterables = self.get_queryset(
+                            self.model, info, required_fields, skip, limit, **args
+                        )
+                        list_length = len(iterables)
+                        if isinstance(info, GraphQLResolveInfo):
+                            if not info.context:
+                                info = info._replace(context=Context())
+                            info.context.queryset = self.get_queryset(
+                                self.model, info, required_fields, **args
+                            )
 
         elif _root is not None:
             field_name = to_snake_case(info.field_name)

@@ -13,7 +13,7 @@ from graphene_mongo import AsyncMongoengineConnectionField, AsyncMongoengineObje
 
 
 @pytest.mark.asyncio
-async def test_should_query_reporter_async(fixtures):
+async def test_should_query_reporter(fixtures):
     class Query(graphene.ObjectType):
         reporter = graphene.Field(nodes.ReporterAsyncNode)
 
@@ -92,7 +92,7 @@ async def test_should_query_reporter_async(fixtures):
 
 
 @pytest.mark.asyncio
-async def test_should_query_reporters_with_nested_document_async(fixtures):
+async def test_should_query_reporters_with_nested_document(fixtures):
     class Query(graphene.ObjectType):
         reporters = AsyncMongoengineConnectionField(nodes.ReporterAsyncNode)
 
@@ -138,7 +138,7 @@ async def test_should_query_reporters_with_nested_document_async(fixtures):
 
 
 @pytest.mark.asyncio
-async def test_should_query_all_editors_async(fixtures, fixtures_dirname):
+async def test_should_query_all_editors(fixtures, fixtures_dirname):
     class Query(graphene.ObjectType):
         editors = AsyncMongoengineConnectionField(nodes.EditorAsyncNode)
 
@@ -206,7 +206,7 @@ async def test_should_query_all_editors_async(fixtures, fixtures_dirname):
 
 
 @pytest.mark.asyncio
-async def test_should_query_editors_with_dataloader_async(fixtures):
+async def test_should_query_editors_with_dataloader(fixtures):
     from promise import Promise
     from promise.dataloader import DataLoader
 
@@ -270,7 +270,7 @@ async def test_should_query_editors_with_dataloader_async(fixtures):
 
 
 @pytest.mark.asyncio
-async def test_should_filter_editors_by_id_async(fixtures):
+async def test_should_filter_editors_by_id(fixtures):
     class Query(graphene.ObjectType):
         editors = AsyncMongoengineConnectionField(nodes.EditorAsyncNode)
 
@@ -307,7 +307,7 @@ async def test_should_filter_editors_by_id_async(fixtures):
 
 
 @pytest.mark.asyncio
-async def test_should_filter_async(fixtures):
+async def test_should_filter(fixtures):
     class Query(graphene.ObjectType):
         articles = AsyncMongoengineConnectionField(nodes.ArticleAsyncNode)
 
@@ -346,7 +346,7 @@ async def test_should_filter_async(fixtures):
 
 
 @pytest.mark.asyncio
-async def test_should_filter_by_reference_field_async(fixtures):
+async def test_should_filter_by_reference_field(fixtures):
     class Query(graphene.ObjectType):
         articles = AsyncMongoengineConnectionField(nodes.ArticleAsyncNode)
 
@@ -374,7 +374,7 @@ async def test_should_filter_by_reference_field_async(fixtures):
 
 
 @pytest.mark.asyncio
-async def test_should_filter_through_inheritance_async(fixtures):
+async def test_should_filter_through_inheritance(fixtures):
     class Query(graphene.ObjectType):
         node = Node.Field()
         children = AsyncMongoengineConnectionField(nodes.ChildAsyncNode)
@@ -415,7 +415,7 @@ async def test_should_filter_through_inheritance_async(fixtures):
 
 
 @pytest.mark.asyncio
-async def test_should_filter_by_list_contains_async(fixtures):
+async def test_should_filter_by_list_contains(fixtures):
     # Notes: https://goo.gl/hMNRgs
     class Query(graphene.ObjectType):
         reporters = AsyncMongoengineConnectionField(nodes.ReporterAsyncNode)
@@ -462,7 +462,7 @@ async def test_should_filter_by_list_contains_async(fixtures):
 
 
 @pytest.mark.asyncio
-async def test_should_filter_by_id_async(fixtures):
+async def test_should_filter_by_id(fixtures):
     # Notes: https://goo.gl/hMNRgs
     class Query(graphene.ObjectType):
         reporter = Node.Field(nodes.ReporterAsyncNode)
@@ -490,7 +490,7 @@ async def test_should_filter_by_id_async(fixtures):
 
 
 @pytest.mark.asyncio
-async def test_should_first_n_async(fixtures):
+async def test_should_first_n(fixtures):
     class Query(graphene.ObjectType):
         editors = AsyncMongoengineConnectionField(nodes.EditorAsyncNode)
 
@@ -534,7 +534,7 @@ async def test_should_first_n_async(fixtures):
 
 
 @pytest.mark.asyncio
-async def test_should_after_async(fixtures):
+async def test_should_after(fixtures):
     class Query(graphene.ObjectType):
         players = AsyncMongoengineConnectionField(nodes.PlayerAsyncNode)
 
@@ -567,7 +567,7 @@ async def test_should_after_async(fixtures):
 
 
 @pytest.mark.asyncio
-async def test_should_before_async(fixtures):
+async def test_should_before(fixtures):
     class Query(graphene.ObjectType):
         players = AsyncMongoengineConnectionField(nodes.PlayerAsyncNode)
 
@@ -602,7 +602,7 @@ async def test_should_before_async(fixtures):
 
 
 @pytest.mark.asyncio
-async def test_should_last_n_async(fixtures):
+async def test_should_last_n(fixtures):
     class Query(graphene.ObjectType):
         players = AsyncMongoengineConnectionField(nodes.PlayerAsyncNode)
 
@@ -634,7 +634,7 @@ async def test_should_last_n_async(fixtures):
 
 
 @pytest.mark.asyncio
-async def test_should_self_reference_async(fixtures):
+async def test_should_self_reference(fixtures):
     class Query(graphene.ObjectType):
         players = AsyncMongoengineConnectionField(nodes.PlayerAsyncNode)
 
@@ -709,7 +709,7 @@ async def test_should_self_reference_async(fixtures):
 
 
 @pytest.mark.asyncio
-async def test_should_lazy_reference_async(fixtures):
+async def test_should_lazy_reference(fixtures):
     class Query(graphene.ObjectType):
         node = Node.Field()
         parents = AsyncMongoengineConnectionField(nodes.ParentWithRelationshipAsyncNode)
@@ -766,7 +766,7 @@ async def test_should_lazy_reference_async(fixtures):
 
 
 @pytest.mark.asyncio
-async def test_should_query_with_embedded_document_async(fixtures):
+async def test_should_query_with_embedded_document(fixtures):
     class Query(graphene.ObjectType):
         professors = AsyncMongoengineConnectionField(nodes.ProfessorVectorAsyncNode)
 
@@ -796,7 +796,7 @@ async def test_should_query_with_embedded_document_async(fixtures):
 
 
 @pytest.mark.asyncio
-async def test_should_get_queryset_returns_dict_filters_async(fixtures):
+async def test_should_get_queryset_returns_dict_filters(fixtures):
     class Query(graphene.ObjectType):
         node = Node.Field()
         articles = AsyncMongoengineConnectionField(
@@ -839,7 +839,7 @@ async def test_should_get_queryset_returns_dict_filters_async(fixtures):
 
 
 @pytest.mark.asyncio
-async def test_should_get_queryset_returns_qs_filters_async(fixtures):
+async def test_should_get_queryset_returns_qs_filters(fixtures):
     def get_queryset(model, info, **args):
         return model.aobjects(headline="World")
 
@@ -884,7 +884,7 @@ async def test_should_get_queryset_returns_qs_filters_async(fixtures):
 
 
 @pytest.mark.asyncio
-async def test_should_filter_mongoengine_queryset_async(fixtures):
+async def test_should_filter_mongoengine_queryset(fixtures):
     class Query(graphene.ObjectType):
         players = AsyncMongoengineConnectionField(nodes.PlayerAsyncNode)
 
@@ -915,7 +915,7 @@ async def test_should_filter_mongoengine_queryset_async(fixtures):
 
 
 @pytest.mark.asyncio
-async def test_should_query_document_with_embedded_async(fixtures):
+async def test_should_query_document_with_embedded(fixtures):
     class Query(graphene.ObjectType):
         foos = AsyncMongoengineConnectionField(nodes.FooAsyncNode)
 
@@ -946,7 +946,7 @@ async def test_should_query_document_with_embedded_async(fixtures):
 
 
 @pytest.mark.asyncio
-async def test_should_filter_mongoengine_queryset_with_list_async(fixtures):
+async def test_should_filter_mongoengine_queryset_with_list(fixtures):
     class Query(graphene.ObjectType):
         players = AsyncMongoengineConnectionField(nodes.PlayerAsyncNode)
 
@@ -977,7 +977,7 @@ async def test_should_filter_mongoengine_queryset_with_list_async(fixtures):
 
 
 @pytest.mark.asyncio
-async def test_should_get_correct_list_of_documents_async(fixtures):
+async def test_should_get_correct_list_of_documents(fixtures):
     class Query(graphene.ObjectType):
         players = AsyncMongoengineConnectionField(nodes.PlayerAsyncNode)
 
@@ -1032,7 +1032,7 @@ async def test_should_get_correct_list_of_documents_async(fixtures):
 
 
 @pytest.mark.asyncio
-async def test_should_filter_mongoengine_queryset_by_id_and_other_fields_async(
+async def test_should_filter_mongoengine_queryset_by_id_and_other_fields(
     fixtures,
 ):
     class Query(graphene.ObjectType):

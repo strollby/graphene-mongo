@@ -5,7 +5,7 @@ from ..models import Article, Editor
 from .nodes import ArticleAsyncNode, EditorAsyncNode
 
 
-async def test_should_create_async(fixtures):
+async def test_should_create(fixtures):
     class CreateArticle(graphene.Mutation):
         class Arguments:
             headline = graphene.String()
@@ -41,7 +41,7 @@ async def test_should_create_async(fixtures):
     assert result.data == expected
 
 
-async def test_should_update_async(fixtures):
+async def test_should_update(fixtures):
     class UpdateEditor(graphene.Mutation):
         class Arguments:
             id = graphene.ID()

@@ -11,7 +11,6 @@ from mongoengine import Document
 from mongoengine.base import LazyReference
 
 from graphene_mongo.base.utils import ExecutorEnum, get_queried_union_types, get_document
-from graphene_mongo.asynchronous.utils import get_dataloader
 
 
 class ListFieldResolver:
@@ -64,16 +63,11 @@ class ListFieldResolver:
         executor: ExecutorEnum,
         object_id_list: list[ObjectId],
         queried_fields: dict,
-        args: tuple,
     ):
         document, only_fields, document_ids = ListFieldResolver.__get_reference_objects_common(
             registry, model, executor, object_id_list, queried_fields
         )
-        return (
-            await get_dataloader(info=args[0])
-            .model(model_class=document, projections=only_fields)
-            .load_many(document_ids)
-        )
+        return await document.aobjects.only(*only_fields).filter(pk__in=document_ids).to_list()
 
     # ======================= DB CALLS: END =======================
 
@@ -162,7 +156,6 @@ class ListFieldResolver:
                             executor,
                             object_id_list,
                             queried_fields,
-                            args,
                         )
                     )
                 else:

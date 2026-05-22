@@ -1,4 +1,3 @@
-from bson import ObjectId
 import graphene
 from graphene import InputObjectType
 from graphene.relay import Connection, Node
@@ -6,13 +5,12 @@ from graphene.types.interface import Interface, InterfaceOptions
 from graphene.types.objecttype import ObjectType, ObjectTypeOptions
 from graphene.types.utils import yank_fields_from_attrs
 from graphene.utils.str_converters import to_snake_case
-from graphql import GraphQLResolveInfo
 import mongoengine
 
 from .fields import AsyncMongoengineConnectionField
 from ..base.registry import Registry, get_global_async_registry, get_inputs_async_registry
 from ..synchronous.types import construct_fields, construct_self_referenced_fields
-from ..base.utils import ExecutorEnum, get_query_fields, is_valid_mongoengine_model
+from ..base.utils import ExecutorEnum, get_query_fields, get_select_related_paths, is_valid_mongoengine_model
 
 
 def create_graphene_generic_class_async(object_type, option_type):
@@ -181,20 +179,14 @@ def create_graphene_generic_class_async(object_type, option_type):
                 if to_snake_case(field) in cls._meta.model._fields_ordered:
                     required_fields.append(to_snake_case(field))
             required_fields = list(set(required_fields))
-            return await cls._meta.model.aobjects.only(*required_fields).get(pk=id)
+            related = get_select_related_paths(cls._meta.model, queried_fields)
+            qs = cls._meta.model.aobjects.only(*required_fields)
+            if related:
+                qs = qs.select_related(*related)
+            return await qs.get(pk=id)
 
         def resolve_id(self, info):
             return str(self.id)
-
-        @classmethod
-        async def dataloader_resolver(
-            cls, info: GraphQLResolveInfo, ids: list[ObjectId], projections: list[str] | None = None
-        ):
-            """Resolver for dataloader. Override this to implement custom resolver"""
-            docs = cls._meta.model.aobjects.filter(pk__in=ids)
-            if projections:
-                docs = docs.only(*projections)
-            return await docs.to_list()
 
     return AsyncGrapheneMongoengineGenericType, AsyncMongoengineGenericObjectTypeOptions
 

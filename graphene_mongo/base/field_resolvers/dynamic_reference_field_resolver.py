@@ -6,7 +6,6 @@ from graphene.utils.str_converters import to_snake_case
 from mongoengine import Document, ReferenceField
 
 from graphene_mongo.base.utils import ExecutorEnum, get_query_fields
-from graphene_mongo.asynchronous.utils import get_dataloader
 
 
 class DynamicReferenceFieldResolver:
@@ -31,10 +30,8 @@ class DynamicReferenceFieldResolver:
                 queried_fields.append(item)
 
         fields_to_fetch = set(list(_type._meta.required_fields) + queried_fields)
-        if isinstance(document, field.document_type) and all(
-            document._data[_field] is not None for _field in fields_to_fetch
-        ):
-            return document  # Data is already fetched
+        if isinstance(document, field.document_type):
+            return document  # Already fetched by select_related
 
         document_id = (
             document.id
@@ -64,11 +61,7 @@ class DynamicReferenceFieldResolver:
             )
             if not isinstance(result, tuple):
                 return result
-            model, only_fields, id = result
-            return (
-                await get_dataloader(info=args[0])
-                .model(model_class=model, projections=only_fields)
-                .load(id)
-            )
+            model, only_fields, document_id = result
+            return await model.aobjects.only(*only_fields).get(pk=document_id)
 
         return resolver

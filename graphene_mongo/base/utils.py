@@ -6,6 +6,7 @@ import inspect
 from typing import Callable, Optional
 
 from graphene import Node
+from graphene.utils.str_converters import to_snake_case
 from graphene.utils.trim_docstring import trim_docstring
 from graphql import (
     BooleanValueNode,
@@ -207,8 +208,31 @@ def get_query_fields(info):
 
     query = collect_query_fields(node, fragments, variables)
     if "edges" in query:
-        return query["edges"]["node"].keys()
+        return query["edges"]["node"]
     return query
+
+
+def get_select_related_paths(model, queried_fields, prefix=""):
+    """Recursively build select_related paths for queried reference fields.
+
+    Returns ``__``-separated paths (e.g. ``["editor", "editor__company"]``)
+    suitable for ``QuerySet.select_related(*paths)``.
+    """
+    paths = []
+    if not queried_fields or not hasattr(queried_fields, "items"):
+        return paths
+    for field_name, sub_fields in queried_fields.items():
+        snake = to_snake_case(field_name)
+        if snake not in model._fields:
+            continue
+        mongo_field = model._fields[snake]
+        inner = mongo_field.field if isinstance(mongo_field, mongoengine.ListField) else mongo_field
+        if isinstance(inner, mongoengine.ReferenceField):
+            path = f"{prefix}__{snake}" if prefix else snake
+            paths.append(path)
+            if sub_fields and hasattr(inner, "document_type"):
+                paths += get_select_related_paths(inner.document_type, sub_fields, prefix=path)
+    return paths
 
 
 def get_queried_union_types(info, valid_gql_types):

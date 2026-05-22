@@ -27,6 +27,7 @@ from ..base.utils import (
     get_document,
     get_model_reference_fields,
     get_query_fields,
+    get_select_related_paths,
     has_page_info,
 )
 
@@ -111,17 +112,17 @@ class AsyncMongoengineConnectionField(MongoengineConnectionField):
                 )
             else:
                 args.update(queryset_or_filters)
+        queried_fields = get_query_fields(info) if isinstance(info, GraphQLResolveInfo) else {}
+        related = get_select_related_paths(model, queried_fields)
+
+        qs = model.aobjects(**args).only(*required_fields).order_by(self.order_by)
+        if related:
+            qs = qs.select_related(*related)
         if limit is not None:
-            return (
-                model.aobjects(**args)
-                .only(*required_fields)
-                .order_by(self.order_by)
-                .skip(skip if skip else 0)
-                .limit(limit)
-            )
+            return qs.skip(skip if skip else 0).limit(limit)
         elif skip is not None:
-            return model.aobjects(**args).only(*required_fields).order_by(self.order_by).skip(skip)
-        return model.aobjects(**args).only(*required_fields).order_by(self.order_by)
+            return qs.skip(skip)
+        return qs
 
     @property
     def registry(self):
@@ -262,14 +263,8 @@ class AsyncMongoengineConnectionField(MongoengineConnectionField):
                         if getattr(args_copy[key], "value", None):
                             args_copy[key] = args_copy[key].value
 
-                count = await self.model.aobjects(**args_copy).count()
-                if count != 0:
-                    skip, limit = find_skip_and_limit(
-                        first=first, after=after, last=last, before=before, count=count
-                    )
-                    iterables = self.get_queryset(
-                        self.model, info, required_fields, skip, limit, **args
-                    )
+                if first is None and last is None and before is None and after is None:
+                    iterables = self.get_queryset(self.model, info, required_fields, **args)
                     iterables = await iterables.to_list()
                     list_length = len(iterables)
                     if isinstance(info, GraphQLResolveInfo):
@@ -278,6 +273,23 @@ class AsyncMongoengineConnectionField(MongoengineConnectionField):
                         info.context.queryset = self.get_queryset(
                             self.model, info, required_fields, **args
                         )
+                else:
+                    count = await self.model.aobjects(**args_copy).count()
+                    if count != 0:
+                        skip, limit = find_skip_and_limit(
+                            first=first, after=after, last=last, before=before, count=count
+                        )
+                        iterables = self.get_queryset(
+                            self.model, info, required_fields, skip, limit, **args
+                        )
+                        iterables = await iterables.to_list()
+                        list_length = len(iterables)
+                        if isinstance(info, GraphQLResolveInfo):
+                            if not info.context:
+                                info = info._replace(context=Context())
+                            info.context.queryset = self.get_queryset(
+                                self.model, info, required_fields, **args
+                            )
 
         elif _root is not None:
             field_name = to_snake_case(info.field_name)

@@ -8,7 +8,6 @@ from mongoengine import Document
 from mongoengine.base import LazyReference
 
 from graphene_mongo.base.utils import ExecutorEnum, get_document, get_queried_union_types
-from graphene_mongo.asynchronous.utils import get_dataloader
 
 
 class UnionFieldResolver:
@@ -70,11 +69,7 @@ class UnionFieldResolver:
             result = resolver_fun(field, registry, executor, root, *args, **kwargs)
             if not isinstance(result, tuple):
                 return result
-            model, only_fields, id = result
-            return (
-                await get_dataloader(info=args[0])
-                .model(model_class=model, projections=only_fields)
-                .load(id)
-            )
+            model, only_fields, document_id = result
+            return await model.aobjects.only(*only_fields).get(pk=document_id)
 
         return resolver

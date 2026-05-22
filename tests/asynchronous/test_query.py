@@ -9,7 +9,7 @@ from .. import models
 from . import types as async_types
 
 
-async def test_should_query_editor_async(fixtures, fixtures_dirname):
+async def test_should_query_editor(fixtures, fixtures_dirname):
     class Query(graphene.ObjectType):
         editor = graphene.Field(async_types.EditorAsyncType)
         editors = graphene.List(async_types.EditorAsyncType)
@@ -73,7 +73,7 @@ async def test_should_query_editor_async(fixtures, fixtures_dirname):
     assert result.data == expected
 
 
-async def test_should_query_reporter_async(fixtures):
+async def test_should_query_reporter(fixtures):
     class Query(graphene.ObjectType):
         reporter = graphene.Field(async_types.ReporterAsyncType)
 
@@ -117,7 +117,7 @@ async def test_should_query_reporter_async(fixtures):
     assert result.data == expected
 
 
-async def test_should_custom_kwargs_async(fixtures):
+async def test_should_custom_kwargs(fixtures):
     class Query(graphene.ObjectType):
         editors = graphene.List(async_types.EditorAsyncType, first=graphene.Int())
 
@@ -147,7 +147,7 @@ async def test_should_custom_kwargs_async(fixtures):
     assert result.data == expected
 
 
-async def test_should_self_reference_async(fixtures):
+async def test_should_self_reference(fixtures):
     class Query(graphene.ObjectType):
         all_players = graphene.List(async_types.PlayerAsyncType)
 
@@ -193,7 +193,7 @@ async def test_should_self_reference_async(fixtures):
     assert result.data == expected
 
 
-async def test_should_query_with_embedded_document_async(fixtures):
+async def test_should_query_with_embedded_document(fixtures):
     class Query(graphene.ObjectType):
         professor_vector = graphene.Field(
             async_types.ProfessorVectorAsyncType, id=graphene.String()
@@ -220,7 +220,7 @@ async def test_should_query_with_embedded_document_async(fixtures):
     assert result.data == expected
 
 
-async def test_should_query_child_async(fixtures):
+async def test_should_query_child(fixtures):
     class Query(graphene.ObjectType):
         children = graphene.List(async_types.ChildAsyncType)
 
@@ -256,7 +256,7 @@ async def test_should_query_child_async(fixtures):
     assert result.data == expected
 
 
-async def test_should_query_other_childs_async(fixtures):
+async def test_should_query_other_childs(fixtures):
     class Query(graphene.ObjectType):
         children = graphene.List(async_types.AnotherChildAsyncType)
 
@@ -292,7 +292,7 @@ async def test_should_query_other_childs_async(fixtures):
     assert result.data == expected
 
 
-async def test_should_query_all_childs_async(fixtures):
+async def test_should_query_all_childs(fixtures):
     class Query(graphene.ObjectType):
         children = graphene.List(async_types.ChildAsyncUnionType)
 
@@ -345,7 +345,7 @@ async def test_should_query_all_childs_async(fixtures):
     assert result.data == expected
 
 
-async def test_should_query_cell_tower_async(fixtures):
+async def test_should_query_cell_tower(fixtures):
     class Query(graphene.ObjectType):
         cell_towers = graphene.List(async_types.CellTowerAsyncType)
 

@@ -224,7 +224,7 @@ def create_graphene_generic_class(object_type, option_type):
             return isinstance(root, cls._meta.model)
 
         @classmethod
-        async def get_node(cls, info, id):
+        def get_node(cls, info, id):
             required_fields = list()
             for field in cls._meta.required_fields:
                 if field in cls._meta.model._fields_ordered:

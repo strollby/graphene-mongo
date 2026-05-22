@@ -2,7 +2,7 @@ import graphene
 import mongoengine
 from pytest import raises
 
-from ..models import (
+from .models import (
     Article,
     Editor,
     EmbeddedArticle,

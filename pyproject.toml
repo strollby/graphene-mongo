@@ -57,6 +57,9 @@ build-backend = "hatchling.build"
 packages = ["graphene_mongo"]
 exclude = ["graphene_mongo/tests"]
 
+[tool.coverage.run]
+omit = ["*/tests/*"]
+
 [tool.ruff]
 line-length = 100
 

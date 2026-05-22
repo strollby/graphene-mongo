@@ -4,10 +4,10 @@ from graphene.relay import Node
 from . import models
 from . import types  # noqa: F401
 from .models import ProfessorMetadata
-from ..types_async import AsyncMongoengineObjectType
+from graphene_mongo.types import MongoengineObjectType
 
 
-class PublisherAsyncNode(AsyncMongoengineObjectType):
+class PublisherNode(MongoengineObjectType):
     legal_name = graphene.String()
     bad_field = graphene.String()
 
@@ -17,92 +17,92 @@ class PublisherAsyncNode(AsyncMongoengineObjectType):
         interfaces = (Node,)
 
 
-class ArticleAsyncNode(AsyncMongoengineObjectType):
+class ArticleNode(MongoengineObjectType):
     class Meta:
         model = models.Article
         interfaces = (Node,)
 
 
-class EditorAsyncNode(AsyncMongoengineObjectType):
+class EditorNode(MongoengineObjectType):
     class Meta:
         model = models.Editor
         interfaces = (Node,)
 
 
-class EmbeddedArticleAsyncNode(AsyncMongoengineObjectType):
+class EmbeddedArticleNode(MongoengineObjectType):
     class Meta:
         model = models.EmbeddedArticle
         interfaces = (Node,)
 
 
-class PlayerAsyncNode(AsyncMongoengineObjectType):
+class PlayerNode(MongoengineObjectType):
     class Meta:
         model = models.Player
         interfaces = (Node,)
         filter_fields = {"first_name": ["istartswith", "in"]}
 
 
-class ReporterAsyncNode(AsyncMongoengineObjectType):
+class ReporterNode(MongoengineObjectType):
     class Meta:
         model = models.Reporter
         interfaces = (Node,)
 
 
-class ParentAsyncNode(AsyncMongoengineObjectType):
+class ParentNode(MongoengineObjectType):
     class Meta:
         model = models.Parent
         interfaces = (Node,)
 
 
-class ChildAsyncNode(AsyncMongoengineObjectType):
+class ChildNode(MongoengineObjectType):
     class Meta:
         model = models.Child
         interfaces = (Node,)
 
 
-class ChildRegisteredBeforeAsyncNode(AsyncMongoengineObjectType):
+class ChildRegisteredBeforeNode(MongoengineObjectType):
     class Meta:
         model = models.ChildRegisteredBefore
         interfaces = (Node,)
 
 
-class ChildRegisteredAfterAsyncNode(AsyncMongoengineObjectType):
+class ChildRegisteredAfterNode(MongoengineObjectType):
     class Meta:
         model = models.ChildRegisteredAfter
         interfaces = (Node,)
 
 
-class ParentWithRelationshipAsyncNode(AsyncMongoengineObjectType):
+class ParentWithRelationshipNode(MongoengineObjectType):
     class Meta:
         model = models.ParentWithRelationship
         interfaces = (Node,)
 
 
-class ProfessorMetadataAsyncNode(AsyncMongoengineObjectType):
+class ProfessorMetadataNode(MongoengineObjectType):
     class Meta:
         model = ProfessorMetadata
         interfaces = (graphene.Node,)
 
 
-class ProfessorVectorAsyncNode(AsyncMongoengineObjectType):
+class ProfessorVectorNode(MongoengineObjectType):
     class Meta:
         model = models.ProfessorVector
         interfaces = (Node,)
 
 
-class ErroneousModelAsyncNode(AsyncMongoengineObjectType):
+class ErroneousModelNode(MongoengineObjectType):
     class Meta:
         model = models.ErroneousModel
         interfaces = (Node,)
 
 
-class BarAsyncNode(AsyncMongoengineObjectType):
+class BarNode(MongoengineObjectType):
     class Meta:
         model = models.Bar
         interfaces = (Node,)
 
 
-class FooAsyncNode(AsyncMongoengineObjectType):
+class FooNode(MongoengineObjectType):
     class Meta:
         model = models.Foo
         interfaces = (Node,)

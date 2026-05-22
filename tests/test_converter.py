@@ -13,11 +13,11 @@ from .models import (
     ProfessorVector,
     Publisher,
 )
-from .. import registry
-from .. import advanced_types
-from ..converter import convert_mongoengine_field
-from ..fields import MongoengineConnectionField
-from ..types import MongoengineObjectType
+from graphene_mongo import registry
+from graphene_mongo import advanced_types
+from graphene_mongo.converter import convert_mongoengine_field
+from graphene_mongo.fields import MongoengineConnectionField
+from graphene_mongo.types import MongoengineObjectType
 
 
 def assert_conversion(mongoengine_field, graphene_field, *args, **kwargs):

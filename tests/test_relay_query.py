@@ -9,8 +9,8 @@ from graphql_relay.node.node import to_global_id
 
 from . import models
 from . import nodes
-from ..fields import MongoengineConnectionField
-from ..types import MongoengineObjectType
+from graphene_mongo.fields import MongoengineConnectionField
+from graphene_mongo.types import MongoengineObjectType
 
 
 @pytest.mark.asyncio

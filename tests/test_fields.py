@@ -1,8 +1,8 @@
 import pytest
 
 from . import nodes, nodes_async
-from .. import AsyncMongoengineConnectionField
-from ..fields import MongoengineConnectionField
+from graphene_mongo import AsyncMongoengineConnectionField
+from graphene_mongo.fields import MongoengineConnectionField
 
 
 def test_article_field_args():

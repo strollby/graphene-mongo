@@ -15,8 +15,8 @@ from .models import (
     Student,
 )
 from .utils import with_local_registry
-from .. import registry
-from ..types import MongoengineObjectType, MongoengineObjectTypeOptions
+from graphene_mongo import registry
+from graphene_mongo.types import MongoengineObjectType, MongoengineObjectTypeOptions
 
 registry.reset_global_registry()
 

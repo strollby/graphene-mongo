@@ -1,4 +1,4 @@
-from .. import registry
+from graphene_mongo import registry
 
 
 def with_local_registry(func):

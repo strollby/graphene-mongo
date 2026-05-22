@@ -9,7 +9,7 @@ from graphql_relay.node.node import to_global_id
 
 from . import models
 from . import nodes_async
-from .. import AsyncMongoengineConnectionField, AsyncMongoengineObjectType
+from graphene_mongo import AsyncMongoengineConnectionField, AsyncMongoengineObjectType
 
 
 @pytest.mark.asyncio

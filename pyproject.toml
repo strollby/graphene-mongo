@@ -55,7 +55,7 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["graphene_mongo"]
-exclude = ["graphene_mongo/tests"]
+exclude = ["graphene_mongo/tests", "tests"]
 
 [tool.coverage.run]
 omit = ["*/tests/*"]

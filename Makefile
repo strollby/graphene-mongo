@@ -15,7 +15,7 @@ lint:
 	@uv run ruff format . --check
 
 test: clean
-	uv run pytest graphene_mongo/tests --cov=graphene_mongo --cov-report=html --cov-report=term
+	uv run pytest tests --cov=graphene_mongo --cov-report=html --cov-report=term
 
 register-pypitest:
 	#python setup.py register -r pypitest

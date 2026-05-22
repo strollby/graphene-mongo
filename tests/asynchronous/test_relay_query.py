@@ -18,7 +18,7 @@ async def test_should_query_reporter_async(fixtures):
         reporter = graphene.Field(nodes.ReporterAsyncNode)
 
         async def resolve_reporter(self, *args, **kwargs):
-            return models.Reporter.objects.first()
+            return await models.Reporter.aobjects.first()
 
     query = """
         query ReporterQuery {
@@ -920,7 +920,7 @@ async def test_should_query_document_with_embedded_async(fixtures):
         foos = AsyncMongoengineConnectionField(nodes.FooAsyncNode)
 
         async def resolve_multiple_foos(self, *args, **kwargs):
-            return list(models.Foo.objects.all())
+            return await models.Foo.aobjects.all().to_list()
 
     query = """
         query {
@@ -1038,7 +1038,7 @@ async def test_should_filter_mongoengine_queryset_by_id_and_other_fields_async(
     class Query(graphene.ObjectType):
         players = AsyncMongoengineConnectionField(nodes.PlayerAsyncNode)
 
-    larry = models.Player.objects.get(first_name="Larry")
+    larry = await models.Player.aobjects.get(first_name="Larry")
     larry_relay_id = to_global_id("PlayerAsyncNode", larry.id)
 
     # "Larry" id && firstName == "Michael" should return nothing

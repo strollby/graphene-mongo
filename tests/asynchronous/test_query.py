@@ -1,0 +1,409 @@
+import base64
+import json
+import os
+
+import graphene
+import pytest
+
+from .. import models
+from . import types as async_types
+
+
+async def test_should_query_editor_async(fixtures, fixtures_dirname):
+    class Query(graphene.ObjectType):
+        editor = graphene.Field(async_types.EditorAsyncType)
+        editors = graphene.List(async_types.EditorAsyncType)
+
+        async def resolve_editor(self, *args, **kwargs):
+            return await models.Editor.aobjects.select_related().first()
+
+        async def resolve_editors(self, *args, **kwargs):
+            return await models.Editor.aobjects.all().to_list()
+
+    query = """
+        query EditorQuery {
+            editor {
+                firstName,
+                metadata,
+                company {
+                    name
+                },
+                avatar {
+                    contentType,
+                    chunkSize,
+                    length,
+                    data
+                }
+            }
+            editors {
+                firstName,
+                lastName
+            }
+        }
+    """
+
+    avatar_filename = os.path.join(fixtures_dirname, "image.jpg")
+    with open(avatar_filename, "rb") as f:
+        data = base64.b64encode(f.read())
+
+    expected = {
+        "editor": {
+            "firstName": "Penny",
+            "company": {"name": "Newsco"},
+            "avatar": {
+                "contentType": "image/jpeg",
+                "chunkSize": 261120,
+                "length": 46928,
+                "data": data.decode("utf-8"),
+            },
+        },
+        "editors": [
+            {"firstName": "Penny", "lastName": "Hardaway"},
+            {"firstName": "Grant", "lastName": "Hill"},
+            {"firstName": "Dennis", "lastName": "Rodman"},
+        ],
+    }
+    expected_metadata = {"age": "20", "nickname": "$1"}
+
+    schema = graphene.Schema(query=Query)
+    result = await schema.execute_async(query)
+    assert not result.errors
+    metadata = result.data["editor"].pop("metadata")
+    assert json.loads(metadata) == expected_metadata
+    assert result.data == expected
+
+
+async def test_should_query_reporter_async(fixtures):
+    class Query(graphene.ObjectType):
+        reporter = graphene.Field(async_types.ReporterAsyncType)
+
+        async def resolve_reporter(self, *args, **kwargs):
+            return await models.Reporter.aobjects.select_related("articles").first()
+
+    query = """
+        query ReporterQuery {
+            reporter {
+                firstName,
+                lastName,
+                email,
+                articles {
+                    headline
+                },
+                embeddedArticles {
+                    headline
+                },
+                embeddedListArticles {
+                    headline
+                },
+                awards
+            }
+        }
+    """
+    expected = {
+        "reporter": {
+            "firstName": "Allen",
+            "lastName": "Iverson",
+            "email": "ai@gmail.com",
+            "articles": [{"headline": "Hello"}, {"headline": "World"}],
+            "embeddedArticles": [{"headline": "Real"}, {"headline": "World"}],
+            "embeddedListArticles": [{"headline": "World"}, {"headline": "Real"}],
+            "awards": ["2010-mvp"],
+        }
+    }
+
+    schema = graphene.Schema(query=Query)
+    result = await schema.execute_async(query)
+    assert not result.errors
+    assert result.data == expected
+
+
+async def test_should_custom_kwargs_async(fixtures):
+    class Query(graphene.ObjectType):
+        editors = graphene.List(async_types.EditorAsyncType, first=graphene.Int())
+
+        async def resolve_editors(self, *args, **kwargs):
+            editors = await models.Editor.aobjects.all().to_list()
+            if "first" in kwargs:
+                editors = editors[: kwargs["first"]]
+            return editors
+
+    query = """
+        query EditorQuery {
+            editors(first: 2) {
+                firstName,
+                lastName
+            }
+        }
+    """
+    expected = {
+        "editors": [
+            {"firstName": "Penny", "lastName": "Hardaway"},
+            {"firstName": "Grant", "lastName": "Hill"},
+        ]
+    }
+    schema = graphene.Schema(query=Query)
+    result = await schema.execute_async(query)
+    assert not result.errors
+    assert result.data == expected
+
+
+async def test_should_self_reference_async(fixtures):
+    class Query(graphene.ObjectType):
+        all_players = graphene.List(async_types.PlayerAsyncType)
+
+        async def resolve_all_players(self, *args, **kwargs):
+            return await models.Player.aobjects.select_related("players").to_list()
+
+    query = """
+        query PlayersQuery {
+            allPlayers {
+                firstName,
+                opponent {
+                    firstName
+                },
+                players {
+                    firstName
+                }
+            }
+        }
+    """
+    expected = {
+        "allPlayers": [
+            {
+                "firstName": "Michael",
+                "opponent": None,
+                "players": [{"firstName": "Magic"}],
+            },
+            {
+                "firstName": "Magic",
+                "opponent": {"firstName": "Michael"},
+                "players": [{"firstName": "Michael"}],
+            },
+            {
+                "firstName": "Larry",
+                "opponent": None,
+                "players": [{"firstName": "Michael"}, {"firstName": "Magic"}],
+            },
+            {"firstName": "Chris", "opponent": None, "players": []},
+        ]
+    }
+    schema = graphene.Schema(query=Query)
+    result = await schema.execute_async(query)
+    assert not result.errors
+    assert result.data == expected
+
+
+async def test_should_query_with_embedded_document_async(fixtures):
+    class Query(graphene.ObjectType):
+        professor_vector = graphene.Field(
+            async_types.ProfessorVectorAsyncType, id=graphene.String()
+        )
+
+        async def resolve_professor_vector(self, info, id):
+            return await models.ProfessorVector.aobjects(metadata__id=id).first()
+
+    query = """
+        query {
+          professorVector(id: "5e06aa20-6805-4eef-a144-5615dedbe32b") {
+            vec
+            metadata {
+                firstName
+            }
+          }
+        }
+    """
+
+    expected = {"professorVector": {"vec": [1.0, 2.3], "metadata": {"firstName": "Steven"}}}
+    schema = graphene.Schema(query=Query, types=[async_types.ProfessorVectorAsyncType])
+    result = await schema.execute_async(query)
+    assert not result.errors
+    assert result.data == expected
+
+
+async def test_should_query_child_async(fixtures):
+    class Query(graphene.ObjectType):
+        children = graphene.List(async_types.ChildAsyncType)
+
+        async def resolve_children(self, *args, **kwargs):
+            return await models.Child.aobjects.all().to_list()
+
+    query = """
+        query Query {
+            children {
+                bar,
+                baz,
+                loc {
+                     type,
+                     coordinates
+                }
+            }
+        }
+    """
+    expected = {
+        "children": [
+            {"bar": "BAR", "baz": "BAZ", "loc": None},
+            {
+                "bar": "bar",
+                "baz": "baz",
+                "loc": {"type": "Point", "coordinates": [10.0, 20.0]},
+            },
+        ]
+    }
+
+    schema = graphene.Schema(query=Query)
+    result = await schema.execute_async(query)
+    assert not result.errors
+    assert result.data == expected
+
+
+async def test_should_query_other_childs_async(fixtures):
+    class Query(graphene.ObjectType):
+        children = graphene.List(async_types.AnotherChildAsyncType)
+
+        async def resolve_children(self, *args, **kwargs):
+            return await models.AnotherChild.aobjects.all().to_list()
+
+    query = """
+        query Query {
+            children {
+                bar,
+                qux,
+                loc {
+                     type,
+                     coordinates
+                }
+            }
+        }
+    """
+    expected = {
+        "children": [
+            {"bar": "BAR", "qux": "QUX", "loc": None},
+            {
+                "bar": "bar",
+                "qux": "qux",
+                "loc": {"type": "Point", "coordinates": [20, 10]},
+            },
+        ]
+    }
+
+    schema = graphene.Schema(query=Query)
+    result = await schema.execute_async(query)
+    assert not result.errors
+    assert result.data == expected
+
+
+async def test_should_query_all_childs_async(fixtures):
+    class Query(graphene.ObjectType):
+        children = graphene.List(async_types.ChildAsyncUnionType)
+
+        async def resolve_children(self, *args, **kwargs):
+            return await models.Parent.aobjects.all().to_list()
+
+    query = """
+        query Query {
+            children {
+                ... on ParentAsyncInterface {
+                    bar
+                }
+                ... on ChildAsyncType {
+                    baz
+                    loc {
+                        type,
+                        coordinates
+                    }
+                }
+                ... on AnotherChildAsyncType {
+                    qux
+                    loc {
+                        type,
+                        coordinates
+                    }
+                }
+            }
+        }
+    """
+    expected = {
+        "children": [
+            {"bar": "BAR", "qux": "QUX", "loc": None},
+            {
+                "bar": "bar",
+                "qux": "qux",
+                "loc": {"type": "Point", "coordinates": [20.0, 10.0]},
+            },
+            {"bar": "BAR", "baz": "BAZ", "loc": None},
+            {
+                "bar": "bar",
+                "baz": "baz",
+                "loc": {"type": "Point", "coordinates": [10.0, 20.0]},
+            },
+        ]
+    }
+
+    schema = graphene.Schema(query=Query)
+    result = await schema.execute_async(query)
+    assert not result.errors
+    assert result.data == expected
+
+
+async def test_should_query_cell_tower_async(fixtures):
+    class Query(graphene.ObjectType):
+        cell_towers = graphene.List(async_types.CellTowerAsyncType)
+
+        async def resolve_cell_towers(self, *args, **kwargs):
+            return await models.CellTower.aobjects.all().to_list()
+
+    query = """
+        query Query {
+            cellTowers {
+                code,
+                base {
+                    type,
+                    coordinates
+                },
+                coverageArea {
+                     type,
+                     coordinates
+                }
+            }
+        }
+    """
+    expected = {
+        "cellTowers": [
+            {
+                "code": "bar",
+                "base": {
+                    "type": "Polygon",
+                    "coordinates": [
+                        [
+                            [-43.36556, -22.99669],
+                            [-43.36539, -23.01928],
+                            [-43.26583, -23.01802],
+                            [-43.36717, -22.98855],
+                            [-43.36636, -22.99351],
+                            [-43.36556, -22.99669],
+                        ]
+                    ],
+                },
+                "coverageArea": {
+                    "type": "MultiPolygon",
+                    "coordinates": [
+                        [
+                            [
+                                [-43.36556, -22.99669],
+                                [-43.36539, -23.01928],
+                                [-43.26583, -23.01802],
+                                [-43.36717, -22.98855],
+                                [-43.36636, -22.99351],
+                                [-43.36556, -22.99669],
+                            ]
+                        ]
+                    ],
+                },
+            }
+        ]
+    }
+
+    schema = graphene.Schema(query=Query)
+    result = await schema.execute_async(query)
+    assert not result.errors
+    assert result.data == expected

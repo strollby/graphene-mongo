@@ -28,7 +28,6 @@ dependencies = [
     "graphene-federation>=3.1.5",
     "promise>=2.3",
     "mongoengine",
-    "aiodataloader>=0.4.3",
 ]
 
 [project.urls]
@@ -39,14 +38,13 @@ Repository = "https://github.com/graphql-python/graphene-mongo"
 mongoengine = { git = "https://github.com/strollby/mongoengine", rev = "v0.30.0-alpha.2" }
 
 [dependency-groups]
-dev = [
+test = [
     "pytest",
     "mongomock>=4.1.2",
     "mock>=5.0.1",
     "pytest-cov",
     "pytest-asyncio",
     "ruff",
-    "setuptools>=69.0.2,<79.0.0",
 ]
 
 [build-system]

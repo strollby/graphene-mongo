@@ -53,7 +53,7 @@ class AsyncMongoengineConnectionField(MongoengineConnectionField):
         that it has an associated connection class.
 
         Returns:
-            type: The connection class (e.g. ArticleTypeConnection).
+            type: The connection class (e.g., ArticleTypeConnection).
 
         Raises:
             AssertionError: If the type is not an AsyncMongoengineObjectType or has no connection.

@@ -13,21 +13,21 @@ def create_graphene_generic_class_async(object_type, option_type):
 
     Thin wrapper around create_graphene_generic_class
     that injects async-specific dependencies (async registry factories, async connection
-    field class, and an async def get_node classmethod).
+    field class, and an async def get_node class method).
 
     get_node is injected via attribute assignment rather than subclassing to avoid
     triggering __init_subclass_with_meta__ on the intermediate class.
 
     Args:
         object_type: graphene base class to inherit from
-            (e.g. ObjectType, Interface).
+            (e.g., ObjectType, Interface).
         option_type: Matching options class
-            (e.g. ObjectTypeOptions, InterfaceOptions).
+            (e.g., ObjectTypeOptions, InterfaceOptions).
 
     Returns:
         tuple[type, type]:
-            (GenericType, Options) — the generated base class and its options class.
-            GenericType.get_node is an async classmethod that uses
+            (GenericType, Options) — the generated base class and its option's class.
+            GenericType.get_node is an async class method that uses
             await model.aobjects.only(*fields).get(pk=id).
     """
     GenericType, Options = _create(
@@ -39,6 +39,7 @@ def create_graphene_generic_class_async(object_type, option_type):
         default_connection_field_class=AsyncMongoengineConnectionField,
     )
 
+    # noinspection PyDecorator
     @classmethod
     async def get_node(cls, info, id):
         required_fields = list()

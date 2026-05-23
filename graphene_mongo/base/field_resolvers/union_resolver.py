@@ -40,7 +40,7 @@ class UnionFieldResolver:
             Document — if the reference was already fetched (e.g. via select_related).
             tuple[type, set[str], ObjectId] — (document_class, fields_to_fetch, pk)
             if a DB query is required.
-            Document(id=pk) — a stub instance if the type is not in the queried union.
+            Document (id=pk) — a stub instance if the type is not in the queried union.
             None — if the field value is empty / unset.
         """
         from graphene_mongo.base.converter import convert_mongoengine_field

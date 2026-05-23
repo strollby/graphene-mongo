@@ -26,22 +26,22 @@ PYMONGO_VERSION = tuple(pymongo.version_tuple[:2])
 
 
 class MongoengineConnectionField(BaseMongoengineConnectionField):
-    """Relay ``ConnectionField`` for synchronous MongoEngine queries.
+    """Relay ConnectionField for synchronous MongoEngine queries.
 
-    Extends :class:`~graphene_mongo.base.fields.BaseMongoengineConnectionField` with
-    sync-specific implementations of ``get_queryset``, ``default_resolver``,
-    ``chained_resolver``, and ``connection_resolver``.
+    Extends BaseMongoengineConnectionField with
+    sync-specific implementations of get_queryset, default_resolver,
+    chained_resolver, and connection_resolver.
 
-    Accepted in ``Meta.connection_field_class`` of
-    :class:`~graphene_mongo.synchronous.types.MongoengineObjectType` subclasses.
+    Accepted in Meta.connection_field_class of
+    MongoengineObjectType subclasses.
     """
 
     @property
     def executor(self) -> ExecutorEnum:
-        """Return ``ExecutorEnum.SYNC`` to indicate synchronous execution.
+        """Return ExecutorEnum.SYNC to indicate synchronous execution.
 
         Returns:
-            ExecutorEnum: Always ``ExecutorEnum.SYNC``.
+            ExecutorEnum: Always ExecutorEnum.SYNC.
         """
         return ExecutorEnum.SYNC
 
@@ -50,14 +50,14 @@ class MongoengineConnectionField(BaseMongoengineConnectionField):
         """Return the Relay connection type for this field.
 
         Validates that the underlying graphene type is a
-        :class:`~graphene_mongo.synchronous.types.MongoengineObjectType` and that
+        MongoengineObjectType and that
         it has an associated connection class.
 
         Returns:
-            type: The connection class (e.g. ``ArticleTypeConnection``).
+            type: The connection class (e.g., ArticleTypeConnection).
 
         Raises:
-            AssertionError: If the type is not a ``MongoengineObjectType`` or has no connection.
+            AssertionError: If the type is not a MongoengineObjectType or has no connection.
         """
         from .types import MongoengineObjectType
 
@@ -73,18 +73,18 @@ class MongoengineConnectionField(BaseMongoengineConnectionField):
     def get_queryset(
         self, model, info, required_fields=None, skip=None, limit=None, **args
     ) -> QuerySet:
-        """Build and return a synchronous MongoEngine ``QuerySet``.
+        """Build and return a synchronous MongoEngine QuerySet.
 
         Hydrates reference and geo arguments, delegates to a user-supplied
-        ``get_queryset`` callback if provided, applies ``select_related``, projects to
-        ``required_fields``, and applies ``skip`` / ``limit`` pagination.
+        get_queryset callback if provided, applies select_related, projects to
+        required_fields, and applies skip / limit pagination.
 
         Args:
-            model: MongoEngine ``Document`` class to query.
+            model: MongoEngine Document class to query.
             info: GraphQL resolve info object.
-            required_fields (list[str] | None): Fields to project with ``.only()``.
-            skip (int | None): Number of documents to skip; ``None`` means no skip.
-            limit (int | None): Maximum documents to return; ``None`` means no limit.
+            required_fields (list[str] | None): Fields to project with .only().
+            skip (int | None): Number of documents to skip; None means no skip.
+            limit (int | None): Maximum documents to return; None means no limit.
             **args: Additional MongoEngine filter keyword arguments.
 
         Returns:
@@ -115,28 +115,28 @@ class MongoengineConnectionField(BaseMongoengineConnectionField):
 
         Handles three resolution scenarios:
 
-        1. **Pre-resolved iterable** (``resolved`` is set): Applies pagination directly
+        1. **Pre-resolved iterable** (resolved is set): Applies pagination directly
            to the provided QuerySet or list.
-        2. **``pk__in`` shortcut**: When a parent document's relation IDs were captured
-           in ``args["pk__in"]``, fetches only those documents.
+        2. **pk__in shortcut**: When a parent document's relation IDs were captured
+           in args[ "pk__in"], fetches only those documents.
         3. **Normal query**: Issues a counted or uncounted query against the model,
-           optionally using the user-supplied ``get_queryset`` callback, and applies
+           optionally using the user-supplied get_queryset callback, and applies
            Relay cursor pagination.
 
-        Page-info computation is gated on ``has_page_info(info)`` to avoid unnecessary
-        ``count_documents`` calls when the client doesn't request ``pageInfo``.
+        Page-info computation is gated on has_page_info(info) to avoid unnecessary
+        count_documents calls when the client doesn't request pageInfo.
 
         Args:
-            _root: The parent document instance, or ``None`` for top-level queries.
+            _root: The parent document instance, or None for top-level queries.
             info: GraphQL resolve info object.
-            required_fields (list[str] | None): Fields to project with ``.only()``.
-            resolved: Pre-resolved iterable (QuerySet or list), or ``None``.
+            required_fields (list[str] | None): Fields to project with .only().
+            resolved: Pre-resolved iterable (QuerySet or list), or None.
             **args: MongoEngine filter and Relay pagination arguments
-                (``first``, ``last``, ``before``, ``after``, etc.).
+                (first, last, before, after, etc.).
 
         Returns:
-            Connection: A graphene Relay connection with ``edges``, ``pageInfo``,
-            ``iterable``, and ``list_length`` populated.
+            Connection: A graphene Relay connection with edges, pageInfo,
+            iterable, and list_length populated.
         """
         if required_fields is None:
             required_fields = list()
@@ -315,21 +315,21 @@ class MongoengineConnectionField(BaseMongoengineConnectionField):
 
         Calls the supplied *resolver* first. Depending on the return value:
 
-        - ``None`` → falls through to :meth:`default_resolver`.
-        - ``list`` (non-empty, non-``DBRef``) → returned as-is.
-        - ``list`` of ``DBRef`` → re-queries via :meth:`default_resolver`.
-        - ``QuerySet`` → its ``_query`` dict is merged into args and forwarded to
-          :meth:`default_resolver` as ``resolved``.
-        - ``Promise`` → unwrapped and its value is returned.
+        - None → falls through to default_resolver.
+        - list (non-empty, non-DBRef) → returned as-is.
+        - list of DBRef → re-queries via default_resolver.
+        - QuerySet → its _query dict is merged into args and forwarded to
+          default_resolver as resolved.
+        - Promise → unwrapped and its value is returned.
         - Any other value → returned as-is.
 
-        Before calling *resolver*, the queryset context (``info.context.queryset``)
+        Before calling *resolver*, the queryset context (info.context.queryset)
         is populated for external consumers.
 
         Args:
             resolver (callable): The field's user-supplied or parent resolver.
-            is_partial (bool): ``True`` when *resolver* is a ``functools.partial``
-                (i.e. a custom resolver was provided).
+            is_partial (bool): True when *resolver* is a functools.partial
+                (i.e., a custom resolver was provided).
             root: The parent document instance.
             info: GraphQL resolve info object.
             **args: MongoEngine filter and Relay pagination arguments.
@@ -402,14 +402,14 @@ class MongoengineConnectionField(BaseMongoengineConnectionField):
     def connection_resolver(cls, resolver, connection_type, root, info, **args):
         """Entry point called by graphene for every connection field resolution.
 
-        Decodes any Relay global ID values on the ``root`` object before delegating
-        to the chained resolver.  Wraps the resolver result in a ``Promise`` chain
+        Decodes any Relay global ID values on the root object before delegating
+        to the chained resolver.  Wraps the resolver result in a Promise chain
         when the result is thenable (for compatibility with async-in-sync setups).
 
         Args:
-            resolver (callable): The chained resolver produced by :meth:`wrap_resolve`.
-            connection_type: The graphene connection type (or ``NonNull`` wrapper).
-            root: The parent document instance, or ``None`` for top-level queries.
+            resolver (callable): The chained resolver produced by wrap_resolve.
+            connection_type: The graphene connection type (or NonNull wrapper).
+            root: The parent document instance, or None for top-level queries.
             info: GraphQL resolve info object.
             **args: GraphQL field arguments.
 
@@ -436,18 +436,18 @@ class MongoengineConnectionField(BaseMongoengineConnectionField):
         return on_resolve(iterable)
 
     def wrap_resolve(self, parent_resolver):
-        """Wrap the field's resolver to go through :meth:`chained_resolver`.
+        """Wrap the field's resolver to go through chained_resolver.
 
         Called by graphene when building the schema.  Composes the user resolver
-        (or graphene's default attribute resolver) with :meth:`chained_resolver`
-        and :meth:`connection_resolver` so the full resolution pipeline is applied.
+        (or graphene's default attribute resolver) with chained_resolver
+        and connection_resolver so the full resolution pipeline is applied.
 
         Args:
             parent_resolver (callable): The resolver provided by graphene (default
                 attribute resolver or the one set on the field).
 
         Returns:
-            callable: A partial that calls ``connection_resolver(chained_resolver(...), ...)``
+            callable: A partial that calls connection_resolver(chained_resolver)...), ...)
             for every incoming GraphQL request.
         """
         super_resolver = self.resolver or parent_resolver

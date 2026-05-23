@@ -24,23 +24,23 @@ from ..base.utils import (
 
 
 class AsyncMongoengineConnectionField(MongoengineConnectionField):
-    """Relay ``ConnectionField`` for asynchronous MongoEngine queries.
+    """Relay ConnectionField for asynchronous MongoEngine queries.
 
-    Extends :class:`~graphene_mongo.synchronous.fields.MongoengineConnectionField`
-    with ``async def`` overrides for ``get_queryset``, ``default_resolver``,
-    ``chained_resolver``, and ``connection_resolver``.  Also overrides
-    :meth:`_qs_accessor` to return ``model.aobjects`` instead of ``model.objects``.
+    Extends MongoengineConnectionField
+    with async def overrides for get_queryset, default_resolver,
+    chained_resolver, and connection_resolver.  Also overrides
+    _qs_accessor to return model.aobjects instead of model.objects.
 
-    Accepted in ``Meta.connection_field_class`` of
-    :class:`~graphene_mongo.asynchronous.types.AsyncMongoengineObjectType` subclasses.
+    Accepted in Meta.connection_field_class of
+    AsyncMongoengineObjectType subclasses.
     """
 
     @property
     def executor(self):
-        """Return ``ExecutorEnum.ASYNC`` to indicate asynchronous execution.
+        """Return ExecutorEnum.ASYNC to indicate asynchronous execution.
 
         Returns:
-            ExecutorEnum: Always ``ExecutorEnum.ASYNC``.
+            ExecutorEnum: Always ExecutorEnum.ASYNC.
         """
         return ExecutorEnum.ASYNC
 
@@ -49,14 +49,14 @@ class AsyncMongoengineConnectionField(MongoengineConnectionField):
         """Return the Relay connection type for this async field.
 
         Validates that the underlying graphene type is an
-        :class:`~graphene_mongo.asynchronous.types.AsyncMongoengineObjectType` and
+        AsyncMongoengineObjectType and
         that it has an associated connection class.
 
         Returns:
-            type: The connection class (e.g. ``ArticleTypeConnection``).
+            type: The connection class (e.g. ArticleTypeConnection).
 
         Raises:
-            AssertionError: If the type is not an ``AsyncMongoengineObjectType`` or has no connection.
+            AssertionError: If the type is not an AsyncMongoengineObjectType or has no connection.
         """
         from .types import AsyncMongoengineObjectType
 
@@ -83,40 +83,40 @@ class AsyncMongoengineConnectionField(MongoengineConnectionField):
     def _qs_accessor(self, model):
         """Return the async QuerySet manager for the given model.
 
-        Overrides the sync base to return ``model.aobjects`` so that
-        :meth:`get_queryset` issues non-blocking MongoDB calls.
+        Overrides the sync base to return model.aobjects so that
+        get_queryset issues non-blocking MongoDB calls.
 
         Args:
-            model: A MongoEngine ``Document`` subclass.
+            model: A MongoEngine Document subclass.
 
         Returns:
-            mongoengine.AsyncQuerySet: The ``model.aobjects`` manager.
+            mongoengine.AsyncQuerySet: The model.aobjects manager.
         """
         return model.aobjects
 
     def get_queryset(
         self, model, info, required_fields=None, skip=None, limit=None, **args
     ) -> AsyncQuerySet:
-        """Build and return an asynchronous MongoEngine ``AsyncQuerySet``.
+        """Build and return an asynchronous MongoEngine AsyncQuerySet.
 
-        Mirrors :meth:`~graphene_mongo.synchronous.fields.MongoengineConnectionField.get_queryset`
-        but uses ``model.aobjects`` via :meth:`_qs_accessor`.  Rejects sync ``QuerySet``
-        instances returned by a user-supplied ``get_queryset`` callback.
+        Mirrors get_queryset
+        but uses model.aobjects via _qs_accessor.  Rejects sync QuerySet
+        instances returned by a user-supplied get_queryset callback.
 
         Args:
-            model: MongoEngine ``Document`` class to query.
+            model: MongoEngine Document class to query.
             info: GraphQL resolve info object.
-            required_fields (list[str] | None): Fields to project with ``.only()``.
-            skip (int | None): Number of documents to skip; ``None`` means no skip.
-            limit (int | None): Maximum documents to return; ``None`` means no limit.
+            required_fields (list[str] | None): Fields to project with .only().
+            skip (int | None): Number of documents to skip; None means no skip.
+            limit (int | None): Maximum documents to return; None means no limit.
             **args: Additional MongoEngine filter keyword arguments.
 
         Returns:
             AsyncQuerySet: The constructed (and optionally paginated) async QuerySet.
 
         Raises:
-            TypeError: If a user-supplied ``get_queryset`` callback returns a sync
-                ``QuerySet`` instead of an ``AsyncQuerySet``.
+            TypeError: If a user-supplied get_queryset callback returns a sync
+                QuerySet instead of an AsyncQuerySet.
         """
         if required_fields is None:
             required_fields = list()
@@ -146,26 +146,26 @@ class AsyncMongoengineConnectionField(MongoengineConnectionField):
         """Resolve a connection field asynchronously, returning a Relay-compatible connection.
 
         Async counterpart of
-        :meth:`~graphene_mongo.synchronous.fields.MongoengineConnectionField.default_resolver`.
-        Awaits every database call and ``AsyncQuerySet`` operation.
+        default_resolver.
+        Awaits every database call and AsyncQuerySet operation.
 
         Handles the same three resolution scenarios as the sync version:
 
-        1. **Pre-resolved iterable** (``resolved`` is set): Applies pagination to the
-           provided ``AsyncQuerySet`` or list.
-        2. **``pk__in`` shortcut**: Fetches only the listed primary keys.
-        3. **Normal query**: Issues a counted or uncounted query using ``model.aobjects``.
+        1. **Pre-resolved iterable** (resolved is set): Applies pagination to the
+           provided AsyncQuerySet or list.
+        2. **pk__in shortcut**: Fetches only the listed primary keys.
+        3. **Normal query**: Issues a counted or uncounted query using model.aobjects.
 
         Args:
-            _root: The parent document instance, or ``None`` for top-level queries.
+            _root: The parent document instance, or None for top-level queries.
             info: GraphQL resolve info object.
-            required_fields (list[str] | None): Fields to project with ``.only()``.
-            resolved: Pre-resolved ``AsyncQuerySet`` or list, or ``None``.
+            required_fields (list[str] | None): Fields to project with .only().
+            resolved: Pre-resolved AsyncQuerySet or list, or None.
             **args: MongoEngine filter and Relay pagination arguments.
 
         Returns:
-            Connection: A graphene Relay connection with ``edges``, ``pageInfo``,
-            ``iterable``, and ``list_length`` populated.
+            Connection: A graphene Relay connection with edges, pageInfo,
+            iterable, and list_length populated.
         """
         if required_fields is None:
             required_fields = list()
@@ -347,12 +347,12 @@ class AsyncMongoengineConnectionField(MongoengineConnectionField):
         """Chain a user resolver with the async default MongoEngine resolver.
 
         Async counterpart of
-        :meth:`~graphene_mongo.synchronous.fields.MongoengineConnectionField.chained_resolver`.
+        chained_resolver.
         Awaits coroutines returned by the user resolver.
 
         Args:
             resolver (callable): The field's user-supplied or parent resolver.
-            is_partial (bool): ``True`` when *resolver* is a ``functools.partial``.
+            is_partial (bool): True when *resolver* is a functools.partial.
             root: The parent document instance.
             info: GraphQL resolve info object.
             **args: MongoEngine filter and Relay pagination arguments.
@@ -428,13 +428,13 @@ class AsyncMongoengineConnectionField(MongoengineConnectionField):
     async def connection_resolver(cls, resolver, connection_type, root, info, **args):
         """Async entry point called by graphene for every connection field resolution.
 
-        Awaits the resolver coroutine and wraps the result via ``resolve_connection``.
-        Handles ``Promise``-based results for compatibility with mixed sync/async setups.
+        Awaits the resolver coroutine and wraps the result via resolve_connection.
+        Handles Promise-based results for compatibility with mixed sync/async setups.
 
         Args:
-            resolver (callable): The async chained resolver produced by ``wrap_resolve``.
-            connection_type: The graphene connection type (or ``NonNull`` wrapper).
-            root: The parent document instance, or ``None`` for top-level queries.
+            resolver (callable): The async chained resolver produced by wrap_resolve.
+            connection_type: The graphene connection type (or NonNull wrapper).
+            root: The parent document instance, or None for top-level queries.
             info: GraphQL resolve info object.
             **args: GraphQL field arguments.
 

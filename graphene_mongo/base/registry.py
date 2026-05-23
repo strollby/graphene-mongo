@@ -40,7 +40,7 @@ class Registry:
 
         Raises:
             AssertionError: If *cls* is not a recognised Mongoengine object type,
-                or if ``cls._meta.registry`` does not point to this Registry instance.
+                or if cls._meta.registry does not point to this Registry instance.
         """
         from ..synchronous.types import GrapheneMongoengineObjectTypes
         from ..asynchronous.types import AsyncGrapheneMongoengineObjectTypes
@@ -65,14 +65,14 @@ class Registry:
     def register_enum(self, cls):
         """Register a Python Enum class and wrap it as a graphene Enum.
 
-        Automatically appends ``"Enum"`` to the class name when not already
+        Automatically appends "Enum" to the class name when not already
         suffixed, keeping the GraphQL schema name unambiguous.
 
         Args:
             cls (EnumMeta): The Python enum class to register.
 
         Raises:
-            AssertionError: If *cls* is not an ``EnumMeta`` instance.
+            AssertionError: If *cls* is not an EnumMeta instance.
         """
         from enum import EnumMeta
 
@@ -93,7 +93,7 @@ class Registry:
             model: A MongoEngine Document or EmbeddedDocument class.
 
         Returns:
-            The registered graphene type class, or ``None`` if not registered.
+            The registered graphene type class, or None if not registered.
         """
         return self._registry.get(model)
 
@@ -101,24 +101,24 @@ class Registry:
         """Return the MongoEngine model name registered under a graphene type name.
 
         Args:
-            model_string (str): The graphene type name (e.g. ``"ArticleType"``).
+            model_string (str): The graphene type name (e.g. "ArticleType").
 
         Returns:
-            str | None: The MongoEngine model class name, or ``None`` if not found.
+            str | None: The MongoEngine model class name, or None if not found.
         """
         return self._registry_string_map.get(model_string)
 
     def get_type_for_document_model(self, model):
         """Return the graphene type class for a top-level MongoEngine Document.
 
-        Unlike :meth:`get_type_for_model`, this method looks up by class name
-        string and only works for ``Document`` subclasses (not ``EmbeddedDocument``).
+        Unlike get_type_for_model, this method looks up by class name
+        string and only works for Document subclasses (not EmbeddedDocument).
 
         Args:
             model: A MongoEngine Document subclass.
 
         Returns:
-            The registered graphene type class, or ``None`` if not registered.
+            The registered graphene type class, or None if not registered.
 
         Raises:
             TypeError: If *model* is not a Document subclass.
@@ -134,7 +134,7 @@ class Registry:
             cls (EnumMeta): The Python enum class to check.
 
         Returns:
-            bool: ``True`` if already registered, ``False`` otherwise.
+            bool: True if already registered, False otherwise.
         """
         return cls in self._registry_enum
 
@@ -145,7 +145,7 @@ class Registry:
             cls (EnumMeta): The Python enum class.
 
         Returns:
-            graphene.Enum | None: The wrapped graphene Enum, or ``None`` if
+            graphene.Enum | None: The wrapped graphene Enum, or None if
             not yet registered.
         """
         return self._registry_enum.get(cls)
@@ -206,7 +206,7 @@ def get_global_async_registry():
 
 
 def reset_global_registry():
-    """Reset the sync global registry and inputs registry to ``None``.
+    """Reset the sync global registry and inputs registry to None.
 
     Called between tests to ensure a clean state.
     """
@@ -217,7 +217,7 @@ def reset_global_registry():
 
 
 def reset_global_async_registry():
-    """Reset the async global registry and inputs registry to ``None``.
+    """Reset the async global registry and inputs registry to None.
 
     Called between tests to ensure a clean state.
     """

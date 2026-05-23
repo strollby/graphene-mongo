@@ -28,20 +28,20 @@ class MongoEngineConversionError(Exception):
 def convert_mongoengine_field(field, registry=None, executor: ExecutorEnum = ExecutorEnum.SYNC):
     """Convert a MongoEngine field instance into the corresponding graphene field.
 
-    Dispatches via ``@singledispatch`` to a type-specific handler registered
+    Dispatches via @singledispatch to a type-specific handler registered
     below. All handlers share the same signature so callers do not need to know
     the concrete field type.
 
     Args:
-        field: A MongoEngine field instance (e.g. ``StringField``, ``ReferenceField``).
+        field: A MongoEngine field instance (e.g. StringField, ReferenceField).
         registry (Registry | None): Active type registry used to resolve
             referenced document types to their graphene equivalents.
-        executor (ExecutorEnum): ``SYNC`` or ``ASYNC`` — controls which resolver
+        executor (ExecutorEnum): SYNC or ASYNC — controls which resolver
             variant is attached to relationship fields.
 
     Returns:
-        A graphene field instance: ``graphene.String``, ``graphene.Field``,
-        ``graphene.List``, ``graphene.Dynamic``, etc.
+        A graphene field instance: graphene.String, graphene.Field,
+        graphene.List, graphene.Dynamic, etc.
 
     Raises:
         MongoEngineConversionError: If no handler is registered for *field*'s type.
@@ -246,8 +246,8 @@ def convert_field_to_list(field, registry=None, executor: ExecutorEnum = Executo
 def convert_field_to_union(field, registry=None, executor: ExecutorEnum = ExecutorEnum.SYNC):
     """Convert GenericEmbeddedDocumentField / GenericReferenceField → graphene Union Field.
 
-    Builds a dynamic graphene.Union type from the field's ``choices`` list,
-    then wraps it in a ``graphene.Field`` with an appropriate resolver that
+    Builds a dynamic graphene.Union type from the field's choices list,
+    then wraps it in a graphene.Field with an appropriate resolver that
     identifies the concrete type at query time.
 
     Args:
@@ -256,7 +256,7 @@ def convert_field_to_union(field, registry=None, executor: ExecutorEnum = Execut
         executor (ExecutorEnum): Controls which resolver variant is attached.
 
     Returns:
-        graphene.Field wrapping the generated Union type, or ``None`` if
+        graphene.Field wrapping the generated Union type, or None if
         none of the choices have been registered yet.
     """
     _types = []
@@ -330,10 +330,10 @@ def convert_field_to_union(field, registry=None, executor: ExecutorEnum = Execut
 def convert_field_to_dynamic(field, registry=None, executor: ExecutorEnum = ExecutorEnum.SYNC):
     """Convert EmbeddedDocumentField / ReferenceField → graphene.Dynamic.
 
-    Returns a ``graphene.Dynamic`` so that the target type is resolved lazily
+    Returns a graphene.Dynamic so that the target type is resolved lazily
     at schema build time, allowing forward references between types that are
     defined in any order. A reference-field resolver is attached for
-    ``ReferenceField`` to handle lazy de-referencing.
+    ReferenceField to handle lazy de-referencing.
 
     Args:
         field: The MongoEngine embedded or reference field instance.
@@ -341,7 +341,7 @@ def convert_field_to_dynamic(field, registry=None, executor: ExecutorEnum = Exec
         executor (ExecutorEnum): Controls which resolver variant is attached.
 
     Returns:
-        graphene.Dynamic: Evaluates to a ``graphene.Field`` once the target
+        graphene.Dynamic: Evaluates to a graphene.Field once the target
         type is available in the registry.
     """
     model = field.document_type

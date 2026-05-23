@@ -29,8 +29,8 @@ class FileFieldType(graphene.ObjectType):
         """Fetch a named attribute from the GridFS proxy attached to *field*.
 
         Args:
-            field: The graphene field instance; must carry ``instance`` and
-                ``key`` attributes pointing to the parent document and field name.
+            field: The graphene field instance; must carry instance and
+                key attributes pointing to the parent document and field name.
             name (str): Name of the GridFS proxy attribute to read.
             default_value: Value returned when the attribute is absent on the proxy.
 
@@ -60,7 +60,7 @@ class FileFieldType(graphene.ObjectType):
         """Read the raw file bytes from GridFS and return them base64-encoded.
 
         Returns:
-            str | None: UTF-8 base64 string, or ``None`` if the file is empty.
+            str | None: UTF-8 base64 string, or None if the file is empty.
         """
         v = getattr(self.instance, self.key)
         data = v.read()
@@ -73,8 +73,8 @@ class FileFieldType(graphene.ObjectType):
 class _CoordinatesTypeField(graphene.ObjectType):
     """Internal base ObjectType for GeoJSON geometry types.
 
-    Provides the ``type`` string field (e.g. ``"Point"``) shared by all
-    GeoJSON geometry shapes. Subclasses add the appropriate ``coordinates``
+    Provides the type string field (e.g. "Point") shared by all
+    GeoJSON geometry shapes. Subclasses add the appropriate coordinates
     field for their specific geometry.
     """
 
@@ -93,8 +93,8 @@ class PointFieldType(_CoordinatesTypeField):
     """GraphQL ObjectType for a MongoEngine PointField (GeoJSON Point).
 
     Fields:
-        type (String): Always ``"Point"``.
-        coordinates (List[Float]): ``[longitude, latitude]``.
+        type (String): Always "Point".
+        coordinates (List[Float]): [longitude, latitude].
     """
 
     coordinates = graphene.List(graphene.Float)
@@ -106,8 +106,8 @@ class PointFieldInputType(graphene.InputObjectType):
     Used as an argument type when querying by geographic point.
 
     Fields:
-        type (String): GeoJSON geometry type; defaults to ``"Point"``.
-        coordinates (List[Float]): Required ``[longitude, latitude]`` pair.
+        type (String): GeoJSON geometry type; defaults to "Point".
+        coordinates (List[Float]): Required [longitude, latitude] pair.
     """
 
     type = graphene.String(default_value="Point")
@@ -118,9 +118,9 @@ class PolygonFieldType(_CoordinatesTypeField):
     """GraphQL ObjectType for a MongoEngine PolygonField (GeoJSON Polygon).
 
     Fields:
-        type (String): Always ``"Polygon"``.
+        type (String): Always "Polygon".
         coordinates (List[List[List[Float]]]): Outer ring + optional hole rings,
-            each a list of ``[longitude, latitude]`` pairs.
+            each a list of [longitude, latitude] pairs.
     """
 
     coordinates = graphene.List(graphene.List(graphene.List(graphene.Float)))
@@ -130,7 +130,7 @@ class MultiPolygonFieldType(_CoordinatesTypeField):
     """GraphQL ObjectType for a MongoEngine MultiPolygonField (GeoJSON MultiPolygon).
 
     Fields:
-        type (String): Always ``"MultiPolygon"``.
+        type (String): Always "MultiPolygon".
         coordinates (List[List[List[List[Float]]]]): A list of Polygon coordinate
             arrays, each following the PolygonFieldType convention.
     """

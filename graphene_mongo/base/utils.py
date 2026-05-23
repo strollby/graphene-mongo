@@ -22,7 +22,7 @@ class ExecutorEnum(enum.Enum):
     """Enumeration distinguishing synchronous from asynchronous field execution.
 
     Used throughout the library to select the correct resolver variant and
-    QuerySet manager (``model.objects`` vs ``model.aobjects``).
+    QuerySet manager (model.objects vs model.aobjects).
     """
 
     ASYNC = enum.auto()
@@ -49,7 +49,7 @@ def get_model_fields(model, excluding=None):
     """Return all MongoEngine fields on *model* in alphabetical order.
 
     Args:
-        model: A MongoEngine ``Document`` or ``EmbeddedDocument`` class.
+        model: A MongoEngine Document or EmbeddedDocument class.
         excluding (list[str] | None): Field names to omit from the result.
 
     Returns:
@@ -66,18 +66,18 @@ def get_model_fields(model, excluding=None):
 
 
 def get_model_reference_fields(model, excluding=None):
-    """Return only the ``ReferenceField`` fields on *model*.
+    """Return only the ReferenceField fields on *model*.
 
-    Used by :meth:`~graphene_mongo.base.fields.BaseMongoengineConnectionField._hydrate_args`
+    Used by _hydrate_args
     to identify which query arguments represent references that need to be decoded
     from Relay global IDs to MongoEngine document stubs.
 
     Args:
-        model: A MongoEngine ``Document`` or ``EmbeddedDocument`` class.
+        model: A MongoEngine Document or EmbeddedDocument class.
         excluding (list[str] | None): Field names to omit from the result.
 
     Returns:
-        dict[str, mongoengine.ReferenceField]: Mapping of field name → ``ReferenceField``
+        dict[str, mongoengine.ReferenceField]: Mapping of field name → ReferenceField
         for all reference fields on the model.
     """
     excluding = excluding or []
@@ -93,14 +93,14 @@ def get_model_reference_fields(model, excluding=None):
 
 
 def is_valid_mongoengine_model(model):
-    """Return ``True`` if *model* is a MongoEngine ``Document`` or ``EmbeddedDocument`` class.
+    """Return True if *model* is a MongoEngine Document or EmbeddedDocument class.
 
     Args:
         model: Any Python object to check.
 
     Returns:
-        bool: ``True`` when *model* is a class that subclasses ``Document`` or
-        ``EmbeddedDocument``; ``False`` otherwise.
+        bool: True when *model* is a class that subclasses Document or
+        EmbeddedDocument; False otherwise.
     """
     return inspect.isclass(model) and (
         issubclass(model, mongoengine.Document) or issubclass(model, mongoengine.EmbeddedDocument)
@@ -142,17 +142,17 @@ def get_field_is_required(field, registry=None):
 def get_node_from_global_id(node, info, global_id):
     """Resolve a Relay global ID to the corresponding MongoEngine document.
 
-    Walks the node's interface list looking for a ``Node`` interface and delegates
-    to its ``get_node_from_global_id`` implementation.  Falls back to
-    ``Node.get_node_from_global_id`` if the node has no ``_meta.interfaces``.
+    Walks the node's interface list looking for a Node interface and delegates
+    to its get_node_from_global_id implementation.  Falls back to
+    Node.get_node_from_global_id if the node has no _meta.interfaces.
 
     Args:
-        node: A graphene ObjectType class implementing the Relay ``Node`` interface.
+        node: A graphene ObjectType class implementing the Relay Node interface.
         info: GraphQL resolve info object.
-        global_id (str): The Relay-encoded global ID (e.g. ``"QXJ0aWNsZTox"``).
+        global_id (str): The Relay-encoded global ID (e.g. "QXJ0aWNsZTox").
 
     Returns:
-        Document | None: The fetched MongoEngine document, or ``None`` if not found.
+        Document | None: The fetched MongoEngine document, or None if not found.
     """
     try:
         for interface in node._meta.interfaces:
@@ -263,8 +263,8 @@ def get_query_fields(info):
 def get_select_related_paths(model, queried_fields, prefix=""):
     """Recursively build select_related paths for queried reference fields.
 
-    Returns ``__``-separated paths (e.g. ``["editor", "editor__company"]``)
-    suitable for ``QuerySet.select_related(*paths)``.
+    Returns __-separated paths (e.g. ["editor", "editor__company"])
+    suitable for QuerySet.select_related(*paths).
     """
     paths = []
     if not queried_fields or not hasattr(queried_fields, "items"):
@@ -392,15 +392,15 @@ def has_page_info(info):
 def ast_to_dict(node, include_loc=False):
     """Recursively convert a GraphQL AST node to a plain Python dict.
 
-    Only ``FieldNode`` instances are expanded; all other node types (scalars,
+    Only FieldNode instances are expanded; all other node types (scalars,
     lists, etc.) are returned as-is.  This simplified representation is used by
-    :func:`collect_query_fields` and friends to traverse the selection set without
+    collect_query_fields and friends to traverse the selection set without
     importing every AST node type.
 
     Args:
         node: A GraphQL AST node or any Python value.
-        include_loc (bool): When ``True``, a ``"loc"`` key with ``start``/``end``
-            positions is included for each ``FieldNode``.
+        include_loc (bool): When True, a "loc" key with start/end
+            positions is included for each FieldNode.
 
     Returns:
         dict | list | Any: The converted representation.
@@ -423,11 +423,11 @@ def ast_to_dict(node, include_loc=False):
 
 
 def find_skip_and_limit(first, last, after, before, count=None):
-    """Compute MongoDB ``skip`` and ``limit`` values from Relay cursor-pagination args.
+    """Compute MongoDB skip and limit values from Relay cursor-pagination args.
 
     Implements the Relay cursor connection spec
-    (https://relay.dev/graphql/connections.htm) for ``first`` / ``last`` /
-    ``before`` / ``after`` pagination.
+    (https://relay.dev/graphql/connections.htm) for first / last /
+    before / after pagination.
 
     Args:
         first (int | None): Return the first N edges after *after*.
@@ -435,14 +435,14 @@ def find_skip_and_limit(first, last, after, before, count=None):
         after (int | None): 0-based offset cursor; edges after this position.
         before (int | None): 0-based offset cursor; edges before this position.
         count (int | None): Total number of matching documents.  **Required** when
-            *last* is not ``None``; a ``ValueError`` is raised otherwise.
+            *last* is not None; a ValueError is raised otherwise.
 
     Returns:
-        tuple[int, int | None]: ``(skip, limit)`` where ``skip`` is the number of
-        documents to skip and ``limit`` is the page size (``None`` means no limit).
+        tuple[int, int | None]: (skip, limit) where skip is the number of
+        documents to skip and limit is the page size (None means no limit).
 
     Raises:
-        ValueError: When *last* is provided but *count* is ``None``.
+        ValueError: When *last* is provided but *count* is None.
     """
     skip = 0
     limit = None
@@ -496,7 +496,7 @@ def connection_from_iterables(
     """Build a Relay connection object from a list of resolved edge nodes.
 
     Constructs cursor strings for each edge using the node's position offset,
-    then assembles the connection with ``pageInfo`` populated.
+    then assembles the connection with pageInfo populated.
 
     Args:
         edges (Iterable): The resolved document instances to wrap as edges.
@@ -506,7 +506,7 @@ def connection_from_iterables(
         has_next_page (bool): Whether there are items after this page.
         connection_type (type): The graphene connection class to instantiate.
         edge_type (type): The graphene edge class to instantiate for each node.
-        pageinfo_type (type): The graphene ``PageInfo`` class.
+        pageinfo_type (type): The graphene PageInfo class.
 
     Returns:
         connection_type: A fully populated graphene Relay connection instance.
@@ -536,7 +536,7 @@ def connection_from_iterables(
 def get_related_field_filter_args(info, model) -> dict:
     """
     Walk the GraphQL AST to find reference/list-of-reference sub-fields that carry
-    filter arguments (e.g. ``articles(headline: "Hello")``).
+    filter arguments (e.g. articles(headline: "Hello")).
 
     Returns a dict suitable for passing into the parent queryset with __ syntax:
         {"articles": {"headline": "Hello"}}

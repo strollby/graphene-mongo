@@ -489,17 +489,20 @@ class MongoengineConnectionField(ConnectionField):
                             self.model, info, required_fields, **args
                         )
                 else:
-                    if PYMONGO_VERSION >= (3, 7):
-                        if hasattr(self.model, "_meta") and "db_alias" in self.model._meta:
-                            db = mongoengine.get_db(self.model._meta["db_alias"])
+                    needs_count = last is not None or requires_page_info
+                    if needs_count:
+                        if PYMONGO_VERSION >= (3, 7):
+                            if hasattr(self.model, "_meta") and "db_alias" in self.model._meta:
+                                db = mongoengine.get_db(self.model._meta["db_alias"])
+                            else:
+                                db = mongoengine.get_db()
+                            count = db[self.model._get_collection_name()].count_documents(args_copy)
                         else:
-                            db = mongoengine.get_db()
-                        count = db[self.model._get_collection_name()].count_documents(args_copy)
-                    else:
-                        count = self.model.objects(args_copy).count()
-                    if count != 0:
+                            count = self.model.objects(args_copy).count()
+                    if not needs_count or count != 0:
                         skip, limit = find_skip_and_limit(
-                            first=first, after=after, last=last, before=before, count=count
+                            first=first, after=after, last=last, before=before,
+                            count=count if needs_count else None,
                         )
                         iterables = self.get_queryset(
                             self.model, info, required_fields, skip, limit, **args

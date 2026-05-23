@@ -40,7 +40,7 @@ async def test_should_create(fixtures):
     result, count = await execute_count(schema, query)
     assert not result.errors
     assert result.data == expected
-    assert count >= 1
+    assert count == 1  # 1 insert
 
 
 async def test_should_update(fixtures):
@@ -80,4 +80,4 @@ async def test_should_update(fixtures):
     result, count = await execute_count(schema, query)
     assert not result.errors
     assert result.data == expected
-    assert count >= 1
+    assert count == 2  # 1 find (get) + 1 save

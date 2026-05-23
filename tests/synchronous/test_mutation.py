@@ -43,7 +43,7 @@ def test_should_create(fixtures):
     result, count = execute_count(schema, query)
     assert not result.errors
     assert result.data == expected
-    assert count >= 1
+    assert count == 1  # 1 insert
 
 
 def test_should_update(fixtures):
@@ -83,4 +83,4 @@ def test_should_update(fixtures):
     result, count = execute_count(schema, query)
     assert not result.errors
     assert result.data == expected
-    assert count >= 1
+    assert count == 2  # 1 find (get) + 1 save

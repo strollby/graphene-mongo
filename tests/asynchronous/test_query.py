@@ -71,7 +71,7 @@ async def test_should_query_editor(fixtures, fixtures_dirname):
     metadata = result.data["editor"].pop("metadata")
     assert json.loads(metadata) == expected_metadata
     assert result.data == expected
-    assert count >= 1
+    assert count == 5  # 1 first editor + 1 company ref deref + 2 GridFS reads (files+chunks) + 1 all editors
 
 
 async def test_should_query_reporter(fixtures):
@@ -194,7 +194,7 @@ async def test_should_self_reference(fixtures):
     result, count = await execute_count(schema, query)
     assert not result.errors
     assert result.data == expected
-    assert count >= 1
+    assert count == 2  # 1 select_related aggregate + 1 lazy deref for opponent (Magic's opponent is Michael)
 
 
 async def test_should_query_with_embedded_document(fixtures):

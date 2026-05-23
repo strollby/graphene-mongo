@@ -205,7 +205,7 @@ def test_should_query_all_editors(fixtures, fixtures_dirname):
     result, count = execute_count(schema, query)
     assert not result.errors
     assert result.data == expected
-    assert count >= 1  # 1 editors query; GridFS avatar reads may add extra queries
+    assert count == 3  # 1 editors find + 2 GridFS reads (files + chunks) for Penny's avatar
 
 
 def test_should_filter_editors_by_id(fixtures):
@@ -505,7 +505,7 @@ def test_should_after(fixtures):
 
     assert not result.errors
     assert result.data == expected
-    assert count == 2  # after cursor triggers pagination: 1 count + 1 find starting from the cursor offset
+    assert count == 1  # after cursor: no count query needed (last is None, pageInfo not requested); 1 find with skip
 
 
 def test_should_before(fixtures):
@@ -540,7 +540,7 @@ def test_should_before(fixtures):
 
     assert not result.errors
     assert result.data == expected
-    assert count == 2  # before cursor triggers pagination: 1 count + 1 find truncated before the cursor
+    assert count == 1  # before cursor: no count query needed (last is None, pageInfo not requested); 1 find with limit
 
 
 def test_should_last_n(fixtures):
@@ -573,6 +573,91 @@ def test_should_last_n(fixtures):
     assert not result.errors
     assert result.data == expected
     assert count == 2  # last:2 triggers pagination: 1 count (to compute tail offset) + 1 find from the end
+
+
+def test_should_after_with_page_info(fixtures):
+    """after + pageInfo forces a count query (needed for hasPreviousPage/hasNextPage)."""
+    class Query(graphene.ObjectType):
+        players = MongoengineConnectionField(nodes.PlayerNode)
+
+    query = """
+        query {
+            players(after: "YXJyYXljb25uZWN0aW9uOjA=") {
+                edges {
+                    cursor
+                    node { firstName }
+                }
+                pageInfo {
+                    hasNextPage
+                    hasPreviousPage
+                    startCursor
+                    endCursor
+                }
+            }
+        }
+    """
+    schema = graphene.Schema(query=Query)
+    result, count = execute_count(schema, query)
+
+    assert not result.errors
+    edges = result.data["players"]["edges"]
+    assert [e["node"]["firstName"] for e in edges] == ["Magic", "Larry", "Chris"]
+    assert result.data["players"]["pageInfo"]["hasPreviousPage"] is True
+    assert count == 2  # pageInfo requested: count query issued even though last is not set
+
+
+def test_should_before_with_page_info(fixtures):
+    """before + pageInfo forces a count query (needed for hasNextPage)."""
+    class Query(graphene.ObjectType):
+        players = MongoengineConnectionField(nodes.PlayerNode)
+
+    query = """
+        query {
+            players(before: "YXJyYXljb25uZWN0aW9uOjI=") {
+                edges {
+                    cursor
+                    node { firstName }
+                }
+                pageInfo {
+                    hasNextPage
+                    hasPreviousPage
+                    startCursor
+                    endCursor
+                }
+            }
+        }
+    """
+    schema = graphene.Schema(query=Query)
+    result, count = execute_count(schema, query)
+
+    assert not result.errors
+    edges = result.data["players"]["edges"]
+    assert [e["node"]["firstName"] for e in edges] == ["Michael", "Magic"]
+    assert result.data["players"]["pageInfo"]["hasNextPage"] is True
+    assert result.data["players"]["pageInfo"]["hasPreviousPage"] is False
+    assert count == 2  # pageInfo requested: count query issued even though last is not set
+
+
+def test_should_first_without_page_info(fixtures):
+    """first without pageInfo skips the count query entirely."""
+    class Query(graphene.ObjectType):
+        players = MongoengineConnectionField(nodes.PlayerNode)
+
+    query = """
+        query {
+            players(first: 2) {
+                edges {
+                    node { firstName }
+                }
+            }
+        }
+    """
+    schema = graphene.Schema(query=Query)
+    result, count = execute_count(schema, query)
+
+    assert not result.errors
+    assert [e["node"]["firstName"] for e in result.data["players"]["edges"]] == ["Michael", "Magic"]
+    assert count == 1  # no pageInfo: count query skipped; 1 find with limit
 
 
 def test_should_self_reference(fixtures):
@@ -647,7 +732,7 @@ def test_should_self_reference(fixtures):
     result, count = execute_count(schema, query)
     assert not result.errors
     assert result.data == expected
-    assert count >= 1  # 1 players query + 1 sub-query per player for the nested players connection field
+    assert count == 1  # 1 players aggregate via select_related; nested players sub-connection resolved from pre-loaded list
 
 
 def test_should_lazy_reference(fixtures):
@@ -704,7 +789,7 @@ def test_should_lazy_reference(fixtures):
     result, count = execute_count(schema, query)
     assert not result.errors
     assert result.data == expected
-    assert count >= 1  # 1 parents query + extra queries to dereference each lazy beforeChild/afterChild relationship
+    assert count == 3  # 1 parents aggregate + 1 before_child select_related load + 1 after_child select_related load
 
 
 def test_should_query_with_embedded_document(fixtures):
@@ -819,7 +904,7 @@ def test_should_get_queryset_returns_qs_filters(fixtures):
     result, count = execute_count(schema, query)
     assert not result.errors
     assert result.data == expected
-    assert count >= 1  # custom queryset-based get_queryset; 1 aggregate expected but bound is loose for safety
+    assert count == 2  # get_queryset returns a QuerySet directly, bypassing select_related; 1 find + 1 editor lazy deref
 
 
 def test_should_filter_mongoengine_queryset(fixtures):
@@ -881,7 +966,7 @@ def test_should_query_document_with_embedded(fixtures):
     schema = graphene.Schema(query=Query)
     result, count = execute_count(schema, query)
     assert not result.errors
-    assert count >= 1  # 1 foos query; bars is EmbeddedDocumentListField so no extra query, data is in the document
+    assert count == 1  # 1 foos find; bars is EmbeddedDocumentListField so no extra query, data is in the document
 
 
 def test_should_filter_mongoengine_queryset_with_list(fixtures):
@@ -967,7 +1052,7 @@ def test_should_get_correct_list_of_documents(fixtures):
 
     assert not result.errors
     assert result.data == expected
-    assert count >= 1  # 1 players find + paginated articles sub-queries per player (first:3 triggers count+find each)
+    assert count == 1  # 1 players aggregate with articles via select_related; first:3 pagination applied on pre-loaded list
 
 
 def test_should_filter_mongoengine_queryset_by_id_and_other_fields(fixtures):
@@ -1130,7 +1215,7 @@ def test_editors_paginated_first(fixtures):
     assert not result.errors
     names = [e["node"]["firstName"] for e in result.data["editors"]["edges"]]
     assert names == ["Penny", "Grant"]
-    assert count == 2  # first:2 triggers pagination: 1 count + 1 aggregate with $lookup for company
+    assert count == 1  # first:2 without pageInfo: count query skipped; 1 aggregate with $lookup for company
 
 
 def test_editors_paginated_last(fixtures):
@@ -1179,7 +1264,7 @@ def test_editors_paginated_cursor_after(fixtures):
     assert not result.errors
     names = [e["node"]["firstName"] for e in result.data["editors"]["edges"]]
     assert names == ["Grant", "Dennis"]
-    assert count == 2  # first:2 with after cursor: 1 count + 1 aggregate with $lookup for company
+    assert count == 1  # first:2 with after cursor, no pageInfo: count query skipped; 1 aggregate with $lookup
 
 
 def test_articles_paginated_first_with_editor(fixtures):
@@ -1204,7 +1289,7 @@ def test_articles_paginated_first_with_editor(fixtures):
 
     assert not result.errors
     assert len(result.data["articles"]["edges"]) == 2
-    assert count == 2  # first:2 triggers pagination: 1 count + 1 aggregate with $lookups for editor and editor→company
+    assert count == 1  # first:2 without pageInfo: count query skipped; 1 aggregate with $lookups for editor and editor→company
 
 
 # ---------------------------------------------------------------------------

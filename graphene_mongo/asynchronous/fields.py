@@ -289,10 +289,13 @@ class AsyncMongoengineConnectionField(MongoengineConnectionField):
                             self.model, info, required_fields, **args
                         )
                 else:
-                    count = await self.model.aobjects(**args_copy).count()
-                    if count != 0:
+                    needs_count = last is not None or requires_page_info
+                    if needs_count:
+                        count = await self.model.aobjects(**args_copy).count()
+                    if not needs_count or count != 0:
                         skip, limit = find_skip_and_limit(
-                            first=first, after=after, last=last, before=before, count=count
+                            first=first, after=after, last=last, before=before,
+                            count=count if needs_count else None,
                         )
                         iterables = self.get_queryset(
                             self.model, info, required_fields, skip, limit, **args

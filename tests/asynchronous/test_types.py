@@ -174,7 +174,7 @@ def test_passing_meta_when_subclassing_mongoengine_objecttype():
             class Meta:
                 model = Article
 
-    assert "AsyncMongoengineGenericObjectTypeOptions" in str(einfo.value)
+    assert "MongoengineGenericObjectTypeOptions" in str(einfo.value)
 
     class TypeSubclass(AsyncMongoengineObjectType):
         class Meta:

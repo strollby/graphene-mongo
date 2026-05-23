@@ -4,6 +4,7 @@ from graphene.relay import Node
 from ..models import Article, Editor
 from .nodes import ArticleAsyncNode, EditorAsyncNode
 from ..types import ArticleInput, EditorInput
+from .utils import execute_count
 
 
 async def test_should_create(fixtures):
@@ -37,9 +38,10 @@ async def test_should_create(fixtures):
     """
     expected = {"createArticle": {"article": {"headline": "My Article"}}}
     schema = graphene.Schema(query=Query, mutation=Mutation)
-    result = await schema.execute_async(query)
+    result, count = await execute_count(schema, query)
     assert not result.errors
     assert result.data == expected
+    assert count == 1
 
 
 async def test_should_update(fixtures):
@@ -51,11 +53,9 @@ async def test_should_update(fixtures):
         editor = graphene.Field(EditorAsyncNode)
 
         async def mutate(self, info, id, editor):
-            editor_to_update = await Editor.aobjects.get(id=id)
-            for key, value in editor.items():
-                if value:
-                    setattr(editor_to_update, key, value)
-            await editor_to_update.asave()
+            editor_to_update = await Editor.aobjects(id=id).modify(
+                new=True, **{f"set__{k}": v for k, v in editor.items() if v}
+            )
             return UpdateEditor(editor=editor_to_update)
 
     class Query(graphene.ObjectType):
@@ -81,6 +81,7 @@ async def test_should_update(fixtures):
     """
     expected = {"updateEditor": {"editor": {"firstName": "Penny", "lastName": "Lane"}}}
     schema = graphene.Schema(query=Query, mutation=Mutation)
-    result = await schema.execute_async(query)
+    result, count = await execute_count(schema, query)
     assert not result.errors
     assert result.data == expected
+    assert count == 1

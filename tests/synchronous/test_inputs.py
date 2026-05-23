@@ -1,12 +1,11 @@
 import graphene
-import pytest
 
 from graphene.relay import Node
 
 from ..models import Article, Editor
 from .nodes import ArticleNode, EditorNode
 from ..types import ArticleInput, EditorInput
-
+from .utils import execute_count
 
 
 def test_should_create(fixtures):
@@ -41,10 +40,10 @@ def test_should_create(fixtures):
     """
     expected = {"createArticle": {"article": {"headline": "My Article"}}}
     schema = graphene.Schema(query=Query, mutation=Mutation)
-    result = schema.execute(query)
+    result, count = execute_count(schema, query)
     assert not result.errors
     assert result.data == expected
-
+    assert count == 1
 
 
 def test_should_update(fixtures):
@@ -56,11 +55,9 @@ def test_should_update(fixtures):
         editor = graphene.Field(EditorNode)
 
         def mutate(self, info, id, editor):
-            editor_to_update = Editor.objects.get(id=id)
-            for key, value in editor.items():
-                if value:
-                    setattr(editor_to_update, key, value)
-            editor_to_update.save()
+            editor_to_update = Editor.objects(id=id).modify(
+                new=True, **{f"set__{k}": v for k, v in editor.items() if v}
+            )
             return UpdateEditor(editor=editor_to_update)
 
     class Query(graphene.ObjectType):
@@ -86,6 +83,7 @@ def test_should_update(fixtures):
     """
     expected = {"updateEditor": {"editor": {"firstName": "Penny", "lastName": "Lane"}}}
     schema = graphene.Schema(query=Query, mutation=Mutation)
-    result = schema.execute(query)
+    result, count = execute_count(schema, query)
     assert not result.errors
     assert result.data == expected
+    assert count == 1

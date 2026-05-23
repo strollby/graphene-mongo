@@ -27,6 +27,7 @@ from ..base.utils import (
     get_document,
     get_model_reference_fields,
     get_query_fields,
+    get_related_field_filter_args,
     get_select_related_paths,
     has_page_info,
 )
@@ -114,10 +115,14 @@ class AsyncMongoengineConnectionField(MongoengineConnectionField):
                 args.update(queryset_or_filters)
         queried_fields = get_query_fields(info) if isinstance(info, GraphQLResolveInfo) else {}
         related = get_select_related_paths(model, queried_fields)
+        related_filter = get_related_field_filter_args(info, model) if isinstance(info, GraphQLResolveInfo) else {}
 
         qs = model.aobjects(**args).only(*required_fields).order_by(self.order_by)
         if related:
             qs = qs.select_related(*related)
+            for field_name, field_filter in related_filter.items():
+                if field_name in related:
+                    qs = qs.filter(**{f"{field_name}__{k}": v for k, v in field_filter.items()})
         if limit is not None:
             return qs.skip(skip if skip else 0).limit(limit)
         elif skip is not None:
@@ -147,8 +152,18 @@ class AsyncMongoengineConnectionField(MongoengineConnectionField):
                     mongoengine.GenericEmbeddedDocumentField,
                 )
             ):
-                if getattr(_root, field_name, []) is not None:
-                    args["pk__in"] = [r.id for r in getattr(_root, field_name, [])]
+                raw = getattr(_root, field_name, [])
+                if raw is not None:
+                    first = next(iter(raw), None)
+                    if isinstance(first, mongoengine.Document):
+                        # Pre-loaded by select_related; the filter was already pushed into
+                        # the $lookup sub-pipeline by get_queryset via filter(**related_filter).
+                        # Return the pre-loaded (already filtered) list directly.
+                        resolved = list(raw)
+                        for k in [k for k in args if k != "id"]:
+                            args.pop(k)
+                    else:
+                        args["pk__in"] = [r.id for r in raw]
 
         _id = args.pop("id", None)
 
@@ -211,7 +226,7 @@ class AsyncMongoengineConnectionField(MongoengineConnectionField):
                     )
                 elif skip:
                     items = items[skip:]
-            iterables = await items.to_list()
+            iterables = await items.to_list() if isinstance(items, AsyncQuerySet) else list(items)
             list_length = len(iterables)
 
         elif callable(getattr(self.model, "objects", None)):

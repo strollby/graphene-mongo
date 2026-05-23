@@ -1,3 +1,5 @@
+from mongoengine.context_managers import async_query_counter
+
 from graphene_mongo import registry
 
 
@@ -15,3 +17,11 @@ def with_local_async_registry(func):
             return retval
 
     return inner
+
+
+async def execute_count(schema, query, **kwargs):
+    """Execute a GraphQL query and return (result, query_count)."""
+    async with async_query_counter() as q:
+        result = await schema.execute_async(query, **kwargs)
+        count = await q.int()
+    return result, count

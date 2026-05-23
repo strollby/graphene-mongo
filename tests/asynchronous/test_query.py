@@ -3,10 +3,10 @@ import json
 import os
 
 import graphene
-import pytest
 
 from .. import models
 from . import types as async_types
+from .utils import execute_count
 
 
 async def test_should_query_editor(fixtures, fixtures_dirname):
@@ -66,11 +66,12 @@ async def test_should_query_editor(fixtures, fixtures_dirname):
     expected_metadata = {"age": "20", "nickname": "$1"}
 
     schema = graphene.Schema(query=Query)
-    result = await schema.execute_async(query)
+    result, count = await execute_count(schema, query)
     assert not result.errors
     metadata = result.data["editor"].pop("metadata")
     assert json.loads(metadata) == expected_metadata
     assert result.data == expected
+    assert count >= 1
 
 
 async def test_should_query_reporter(fixtures):
@@ -112,9 +113,10 @@ async def test_should_query_reporter(fixtures):
     }
 
     schema = graphene.Schema(query=Query)
-    result = await schema.execute_async(query)
+    result, count = await execute_count(schema, query)
     assert not result.errors
     assert result.data == expected
+    assert count == 1
 
 
 async def test_should_custom_kwargs(fixtures):
@@ -142,9 +144,10 @@ async def test_should_custom_kwargs(fixtures):
         ]
     }
     schema = graphene.Schema(query=Query)
-    result = await schema.execute_async(query)
+    result, count = await execute_count(schema, query)
     assert not result.errors
     assert result.data == expected
+    assert count == 1
 
 
 async def test_should_self_reference(fixtures):
@@ -188,9 +191,10 @@ async def test_should_self_reference(fixtures):
         ]
     }
     schema = graphene.Schema(query=Query)
-    result = await schema.execute_async(query)
+    result, count = await execute_count(schema, query)
     assert not result.errors
     assert result.data == expected
+    assert count >= 1
 
 
 async def test_should_query_with_embedded_document(fixtures):
@@ -215,9 +219,10 @@ async def test_should_query_with_embedded_document(fixtures):
 
     expected = {"professorVector": {"vec": [1.0, 2.3], "metadata": {"firstName": "Steven"}}}
     schema = graphene.Schema(query=Query, types=[async_types.ProfessorVectorAsyncType])
-    result = await schema.execute_async(query)
+    result, count = await execute_count(schema, query)
     assert not result.errors
     assert result.data == expected
+    assert count == 1
 
 
 async def test_should_query_child(fixtures):
@@ -251,9 +256,10 @@ async def test_should_query_child(fixtures):
     }
 
     schema = graphene.Schema(query=Query)
-    result = await schema.execute_async(query)
+    result, count = await execute_count(schema, query)
     assert not result.errors
     assert result.data == expected
+    assert count == 1
 
 
 async def test_should_query_other_childs(fixtures):
@@ -287,9 +293,10 @@ async def test_should_query_other_childs(fixtures):
     }
 
     schema = graphene.Schema(query=Query)
-    result = await schema.execute_async(query)
+    result, count = await execute_count(schema, query)
     assert not result.errors
     assert result.data == expected
+    assert count == 1
 
 
 async def test_should_query_all_childs(fixtures):
@@ -340,9 +347,10 @@ async def test_should_query_all_childs(fixtures):
     }
 
     schema = graphene.Schema(query=Query)
-    result = await schema.execute_async(query)
+    result, count = await execute_count(schema, query)
     assert not result.errors
     assert result.data == expected
+    assert count == 1
 
 
 async def test_should_query_cell_tower(fixtures):
@@ -404,6 +412,7 @@ async def test_should_query_cell_tower(fixtures):
     }
 
     schema = graphene.Schema(query=Query)
-    result = await schema.execute_async(query)
+    result, count = await execute_count(schema, query)
     assert not result.errors
     assert result.data == expected
+    assert count == 1

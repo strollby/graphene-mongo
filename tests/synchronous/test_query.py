@@ -7,7 +7,7 @@ import pytest
 
 from .. import models
 from .. import types
-
+from .utils import execute_count
 
 
 def test_should_query_editor(fixtures, fixtures_dirname):
@@ -67,12 +67,12 @@ def test_should_query_editor(fixtures, fixtures_dirname):
     expected_metadata = {"age": "20", "nickname": "$1"}
 
     schema = graphene.Schema(query=Query)
-    result = schema.execute(query)
+    result, count = execute_count(schema, query)
     assert not result.errors
     metadata = result.data["editor"].pop("metadata")
     assert json.loads(metadata) == expected_metadata
     assert result.data == expected
-
+    assert count >= 1
 
 
 def test_should_query_reporter(fixtures):
@@ -114,10 +114,10 @@ def test_should_query_reporter(fixtures):
     }
 
     schema = graphene.Schema(query=Query)
-    result = schema.execute(query)
+    result, count = execute_count(schema, query)
     assert not result.errors
     assert result.data == expected
-
+    assert count == 1
 
 
 def test_should_custom_kwargs(fixtures):
@@ -145,10 +145,10 @@ def test_should_custom_kwargs(fixtures):
         ]
     }
     schema = graphene.Schema(query=Query)
-    result = schema.execute(query)
+    result, count = execute_count(schema, query)
     assert not result.errors
     assert result.data == expected
-
+    assert count == 1
 
 
 def test_should_self_reference(fixtures):
@@ -192,10 +192,10 @@ def test_should_self_reference(fixtures):
         ]
     }
     schema = graphene.Schema(query=Query)
-    result = schema.execute(query)
+    result, count = execute_count(schema, query)
     assert not result.errors
     assert result.data == expected
-
+    assert count >= 1
 
 
 def test_should_query_with_embedded_document(fixtures):
@@ -218,10 +218,10 @@ def test_should_query_with_embedded_document(fixtures):
 
     expected = {"professorVector": {"vec": [1.0, 2.3], "metadata": {"firstName": "Steven"}}}
     schema = graphene.Schema(query=Query, types=[types.ProfessorVectorType])
-    result = schema.execute(query)
+    result, count = execute_count(schema, query)
     assert not result.errors
     assert result.data == expected
-
+    assert count == 1
 
 
 def test_should_query_child(fixtures):
@@ -255,10 +255,10 @@ def test_should_query_child(fixtures):
     }
 
     schema = graphene.Schema(query=Query)
-    result = schema.execute(query)
+    result, count = execute_count(schema, query)
     assert not result.errors
     assert result.data == expected
-
+    assert count == 1
 
 
 def test_should_query_other_childs(fixtures):
@@ -292,10 +292,10 @@ def test_should_query_other_childs(fixtures):
     }
 
     schema = graphene.Schema(query=Query)
-    result = schema.execute(query)
+    result, count = execute_count(schema, query)
     assert not result.errors
     assert result.data == expected
-
+    assert count == 1
 
 
 def test_should_query_all_childs(fixtures):
@@ -330,22 +330,6 @@ def test_should_query_all_childs(fixtures):
     """
     expected = {
         "children": [
-            {"bar": "BAR", "baz": "BAZ", "loc": None},
-            {
-                "bar": "bar",
-                "baz": "baz",
-                "loc": {"type": "Point", "coordinates": [10.0, 20.0]},
-            },
-            {"bar": "BAR", "qux": "QUX", "loc": None},
-            {
-                "bar": "bar",
-                "qux": "qux",
-                "loc": {"type": "Point", "coordinates": [20, 10]},
-            },
-        ]
-    }
-    expected = {
-        "children": [
             {"bar": "BAR", "qux": "QUX", "loc": None},
             {
                 "bar": "bar",
@@ -368,10 +352,10 @@ def test_should_query_all_childs(fixtures):
     }
 
     schema = graphene.Schema(query=Query)
-    result = schema.execute(query)
+    result, count = execute_count(schema, query)
     assert not result.errors
     assert result.data == expected
-
+    assert count == 1
 
 
 def test_should_query_cell_tower(fixtures):
@@ -433,6 +417,7 @@ def test_should_query_cell_tower(fixtures):
     }
 
     schema = graphene.Schema(query=Query)
-    result = schema.execute(query)
+    result, count = execute_count(schema, query)
     assert not result.errors
     assert result.data == expected
+    assert count == 1

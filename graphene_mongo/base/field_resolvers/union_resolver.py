@@ -17,9 +17,12 @@ class UnionFieldResolver:
     ) -> Optional[Union[tuple[Document, set[str], ObjectId], Document]]:
         from graphene_mongo.base.converter import convert_mongoengine_field
 
-        de_referenced: LazyReference = getattr(root, field.name or field.db_name)
+        de_referenced = getattr(root, field.name or field.db_name)
         if not de_referenced:
             return None
+
+        if isinstance(de_referenced, Document):
+            return de_referenced
 
         document = get_document(de_referenced.document_type)
         document_id = de_referenced.id

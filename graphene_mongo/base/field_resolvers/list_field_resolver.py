@@ -82,9 +82,11 @@ class ListFieldResolver:
 
     @staticmethod
     def __build_results(
-        result: list[Document], to_resolve_object_ids: list[ObjectId]
+        result: list[Document],
+        to_resolve_object_ids: list[ObjectId],
+        already_resolved: dict[ObjectId, Document] = None,
     ) -> list[Document]:
-        result_object: dict[ObjectId, Document] = {}
+        result_object: dict[ObjectId, Document] = dict(already_resolved or {})
         for items in result:
             for item in items:
                 result_object[item.id] = item
@@ -108,9 +110,13 @@ class ListFieldResolver:
         to_resolve_models = dict()
         for each, queried_fields in querying_union_types.items():
             to_resolve_models[registry.get_type_for_model_string(each)] = queried_fields
+        already_resolved: dict[ObjectId, Document] = {}
         to_resolve_object_ids: list[ObjectId] = list()
         for each in to_resolve:
-            if isinstance(each, LazyReference):
+            if isinstance(each, Document):
+                already_resolved[each.pk] = each
+                to_resolve_object_ids.append(each.pk)
+            elif isinstance(each, LazyReference):
                 to_resolve_object_ids.append(each.pk)
                 model = each.document_type._class_name
                 if model not in choice_to_resolve:
@@ -142,7 +148,7 @@ class ListFieldResolver:
                         )
                     )
             result = [future.result() for future in as_completed(futures)]
-            return result, to_resolve_object_ids
+            return result, to_resolve_object_ids, already_resolved
         else:
             loop = asyncio.get_event_loop()
             tasks: list[Task] = []
@@ -163,7 +169,7 @@ class ListFieldResolver:
                         ListFieldResolver.__get_non_querying_object_async(model, object_id_list)
                     )
                 tasks.append(task)
-            return tasks, to_resolve_object_ids
+            return tasks, to_resolve_object_ids, already_resolved
 
     @staticmethod
     def reference_resolver(field, registry, executor) -> Callable:
@@ -173,8 +179,8 @@ class ListFieldResolver:
             )
             if not isinstance(resolver_result, tuple):
                 return resolver_result
-            result, to_resolve_object_ids = resolver_result
-            return ListFieldResolver.__build_results(result, to_resolve_object_ids)
+            result, to_resolve_object_ids, already_resolved = resolver_result
+            return ListFieldResolver.__build_results(result, to_resolve_object_ids, already_resolved)
 
         return resolver
 
@@ -186,9 +192,9 @@ class ListFieldResolver:
             )
             if not isinstance(resolver_result, tuple):
                 return resolver_result
-            tasks, to_resolve_object_ids = resolver_result
+            tasks, to_resolve_object_ids, already_resolved = resolver_result
             result: list[Document] = await asyncio.gather(*tasks)
-            return ListFieldResolver.__build_results(result, to_resolve_object_ids)
+            return ListFieldResolver.__build_results(result, to_resolve_object_ids, already_resolved)
 
         return resolver
 

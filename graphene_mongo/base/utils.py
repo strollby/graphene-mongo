@@ -227,7 +227,7 @@ def get_select_related_paths(model, queried_fields, prefix=""):
             continue
         mongo_field = model._fields[snake]
         inner = mongo_field.field if isinstance(mongo_field, mongoengine.ListField) else mongo_field
-        if isinstance(inner, mongoengine.ReferenceField):
+        if isinstance(inner, (mongoengine.ReferenceField, mongoengine.GenericReferenceField)):
             path = f"{prefix}__{snake}" if prefix else snake
             paths.append(path)
             if sub_fields and hasattr(inner, "document_type"):
@@ -429,6 +429,62 @@ def connection_from_iterables(
             has_next_page=has_next_page,
         ),
     )
+
+
+def get_related_field_filter_args(info, model) -> dict:
+    """
+    Walk the GraphQL AST to find reference/list-of-reference sub-fields that carry
+    filter arguments (e.g. ``articles(headline: "Hello")``).
+
+    Returns a dict suitable for passing into the parent queryset with __ syntax:
+        {"articles": {"headline": "Hello"}}
+    → caller does: qs.filter(articles__headline="Hello").select_related("articles")
+
+    Traverses the relay wrapper fields (edges, node) transparently.
+    Handles both literal argument values and GraphQL variable references.
+    """
+    _relay_skip = {"edges", "node", "pageInfo"}
+    _arg_skip = {"first", "last", "before", "after", "id"}
+    result: dict = {}
+
+    def _traverse(selection_set):
+        if not selection_set:
+            return
+        for sel in getattr(selection_set, "selections", []):
+            if not isinstance(sel, FieldNode):
+                continue
+            gql_name = sel.name.value
+            snake_name = to_snake_case(gql_name)
+            if gql_name in _relay_skip:
+                _traverse(sel.selection_set)
+                continue
+            if snake_name not in model._fields:
+                continue
+            mongo_field = model._fields[snake_name]
+            inner = mongo_field.field if isinstance(mongo_field, mongoengine.ListField) else mongo_field
+            if not isinstance(inner, (mongoengine.ReferenceField, mongoengine.GenericReferenceField)):
+                continue
+            if not getattr(sel, "arguments", None):
+                continue
+            field_args: dict = {}
+            for arg in sel.arguments:
+                arg_name = to_snake_case(arg.name.value)
+                if arg_name in _arg_skip:
+                    continue
+                if isinstance(arg.value, VariableNode):
+                    val = (getattr(info, "variable_values", None) or {}).get(arg.value.name.value)
+                elif hasattr(arg.value, "value"):
+                    val = arg.value.value
+                else:
+                    continue
+                if val is not None:
+                    field_args[arg_name] = val
+            if field_args:
+                result[snake_name] = field_args
+
+    if info and getattr(info, "field_nodes", None):
+        _traverse(info.field_nodes[0].selection_set)
+    return result
 
 
 def get_field_resolver(

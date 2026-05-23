@@ -1,3 +1,5 @@
+from mongoengine.context_managers import query_counter
+
 from graphene_mongo import registry
 
 
@@ -15,3 +17,11 @@ def with_local_registry(func):
             return retval
 
     return inner
+
+
+def execute_count(schema, query, **kwargs):
+    """Execute a GraphQL query and return (result, query_count)."""
+    with query_counter() as q:
+        result = schema.execute(query, **kwargs)
+        count = int(q)
+    return result, count

@@ -200,7 +200,6 @@ def test_filter_list_types():
 
     ListField(EmbeddedDocumentListField(...))
     ListField(GenericEmbeddedDocumentField(...))
-    ListField(GenericLazyReferenceField(...))
     """
 
     class ExamType(MongoengineObjectType):

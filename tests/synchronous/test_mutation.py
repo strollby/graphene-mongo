@@ -5,7 +5,7 @@ from graphene.relay import Node
 
 from ..models import Article, Editor
 from .nodes import ArticleNode, EditorNode
-
+from .utils import execute_count
 
 
 def test_should_create(fixtures):
@@ -40,10 +40,10 @@ def test_should_create(fixtures):
     """
     expected = {"createArticle": {"article": {"headline": "My Article"}}}
     schema = graphene.Schema(query=Query, mutation=Mutation)
-    result = schema.execute(query)
+    result, count = execute_count(schema, query)
     assert not result.errors
     assert result.data == expected
-
+    assert count >= 1
 
 
 def test_should_update(fixtures):
@@ -80,6 +80,7 @@ def test_should_update(fixtures):
     """
     expected = {"updateEditor": {"editor": {"firstName": "Tony"}}}
     schema = graphene.Schema(query=Query, mutation=Mutation)
-    result = schema.execute(query)
+    result, count = execute_count(schema, query)
     assert not result.errors
     assert result.data == expected
+    assert count >= 1

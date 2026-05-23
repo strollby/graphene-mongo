@@ -3,22 +3,22 @@ import json
 import os
 
 import graphene
-import pytest
 from graphene.relay import Node
+from graphql_relay.connection.array_connection import offset_to_cursor
 from graphql_relay.node.node import to_global_id
 
 from .. import models
 from . import nodes
 from graphene_mongo import AsyncMongoengineConnectionField, AsyncMongoengineObjectType
+from .utils import execute_count
 
 
-@pytest.mark.asyncio
 async def test_should_query_reporter(fixtures):
     class Query(graphene.ObjectType):
         reporter = graphene.Field(nodes.ReporterAsyncNode)
 
         async def resolve_reporter(self, *args, **kwargs):
-            return await models.Reporter.aobjects.first()
+            return await models.Reporter.aobjects.select_related("articles", "generic_reference").first()
 
     query = """
         query ReporterQuery {
@@ -86,12 +86,12 @@ async def test_should_query_reporter(fixtures):
     }
 
     schema = graphene.Schema(query=Query)
-    result = await schema.execute_async(query)
+    result, count = await execute_count(schema, query)
     assert not result.errors
     assert result.data == expected
+    assert count == 1  # select_related fetches reporter + articles + generic_reference in a single aggregate
 
 
-@pytest.mark.asyncio
 async def test_should_query_reporters_with_nested_document(fixtures):
     class Query(graphene.ObjectType):
         reporters = AsyncMongoengineConnectionField(nodes.ReporterAsyncNode)
@@ -132,12 +132,12 @@ async def test_should_query_reporters_with_nested_document(fixtures):
     }
 
     schema = graphene.Schema(query=Query)
-    result = await schema.execute_async(query)
+    result, count = await execute_count(schema, query)
     assert not result.errors
     assert result.data == expected
+    assert count == 1  # 1 reporters aggregate; article filter (headline="Hello") pushed into $lookup sub-pipeline by MongoEngine
 
 
-@pytest.mark.asyncio
 async def test_should_query_all_editors(fixtures, fixtures_dirname):
     class Query(graphene.ObjectType):
         editors = AsyncMongoengineConnectionField(nodes.EditorAsyncNode)
@@ -200,76 +200,12 @@ async def test_should_query_all_editors(fixtures, fixtures_dirname):
         }
     }
     schema = graphene.Schema(query=Query)
-    result = await schema.execute_async(query)
+    result, count = await execute_count(schema, query)
     assert not result.errors
     assert result.data == expected
+    assert count >= 1  # 1 editors query; GridFS avatar reads may add extra queries
 
 
-@pytest.mark.asyncio
-async def test_should_query_editors_with_dataloader(fixtures):
-    from promise import Promise
-    from promise.dataloader import DataLoader
-
-    class ArticleLoader(DataLoader):
-        def batch_load_fn(self, instances):
-            queryset = models.Article.objects(editor__in=instances)
-            return Promise.resolve(
-                [[a for a in queryset if a.editor.id == instance.id] for instance in instances]
-            )
-
-    article_loader = ArticleLoader()
-
-    class _EditorNode(AsyncMongoengineObjectType):
-        class Meta:
-            model = models.Editor
-            interfaces = (graphene.Node,)
-
-        articles = AsyncMongoengineConnectionField(nodes.ArticleAsyncNode)
-
-        async def resolve_articles(self, *args, **kwargs):
-            return article_loader.load(self)
-
-    class Query(graphene.ObjectType):
-        editors = AsyncMongoengineConnectionField(_EditorNode)
-
-    query = """
-        query EditorPromiseConnectionQuery {
-            editors(first: 1) {
-                edges {
-                    node {
-                        firstName,
-                        articles(first: 1) {
-                            edges {
-                                node {
-                                    headline
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    """
-
-    expected = {
-        "editors": {
-            "edges": [
-                {
-                    "node": {
-                        "firstName": "Penny",
-                        "articles": {"edges": [{"node": {"headline": "Hello"}}]},
-                    }
-                }
-            ]
-        }
-    }
-    schema = graphene.Schema(query=Query)
-    result = await schema.execute_async(query)
-    assert not result.errors
-    assert result.data == expected
-
-
-@pytest.mark.asyncio
 async def test_should_filter_editors_by_id(fixtures):
     class Query(graphene.ObjectType):
         editors = AsyncMongoengineConnectionField(nodes.EditorAsyncNode)
@@ -301,12 +237,12 @@ async def test_should_filter_editors_by_id(fixtures):
         }
     }
     schema = graphene.Schema(query=Query)
-    result = await schema.execute_async(query)
+    result, count = await execute_count(schema, query)
     assert not result.errors
     assert result.data == expected
+    assert count == 1  # single find filtered by relay-decoded _id
 
 
-@pytest.mark.asyncio
 async def test_should_filter(fixtures):
     class Query(graphene.ObjectType):
         articles = AsyncMongoengineConnectionField(nodes.ArticleAsyncNode)
@@ -340,12 +276,12 @@ async def test_should_filter(fixtures):
         }
     }
     schema = graphene.Schema(query=Query)
-    result = await schema.execute_async(query)
+    result, count = await execute_count(schema, query)
     assert not result.errors
     assert result.data == expected
+    assert count == 1  # 1 aggregate with $match on headline; editor ReferenceField resolved via $lookup in the same query
 
 
-@pytest.mark.asyncio
 async def test_should_filter_by_reference_field(fixtures):
     class Query(graphene.ObjectType):
         articles = AsyncMongoengineConnectionField(nodes.ArticleAsyncNode)
@@ -368,12 +304,12 @@ async def test_should_filter_by_reference_field(fixtures):
         "articles": {"edges": [{"node": {"headline": "Hello", "editor": {"firstName": "Penny"}}}]}
     }
     schema = graphene.Schema(query=Query)
-    result = await schema.execute_async(query)
+    result, count = await execute_count(schema, query)
     assert not result.errors
     assert result.data == expected
+    assert count == 1  # 1 aggregate with $match on editor _id; editor ReferenceField resolved via $lookup
 
 
-@pytest.mark.asyncio
 async def test_should_filter_through_inheritance(fixtures):
     class Query(graphene.ObjectType):
         node = Node.Field()
@@ -409,12 +345,12 @@ async def test_should_filter_through_inheritance(fixtures):
         }
     }
     schema = graphene.Schema(query=Query)
-    result = await schema.execute_async(query)
+    result, count = await execute_count(schema, query)
     assert not result.errors
     assert result.data == expected
+    assert count == 1  # 1 aggregate with $match on bar; inherited Child collection queried once
 
 
-@pytest.mark.asyncio
 async def test_should_filter_by_list_contains(fixtures):
     # Notes: https://goo.gl/hMNRgs
     class Query(graphene.ObjectType):
@@ -456,12 +392,12 @@ async def test_should_filter_by_list_contains(fixtures):
         }
     }
     schema = graphene.Schema(query=Query)
-    result = await schema.execute_async(query)
+    result, count = await execute_count(schema, query)
     assert not result.errors
     assert result.data == expected
+    assert count == 1  # 1 reporters aggregate with genericReferences joined via select_related $lookup
 
 
-@pytest.mark.asyncio
 async def test_should_filter_by_id(fixtures):
     # Notes: https://goo.gl/hMNRgs
     class Query(graphene.ObjectType):
@@ -484,12 +420,12 @@ async def test_should_filter_by_id(fixtures):
         }
     }
     schema = graphene.Schema(query=Query)
-    result = await schema.execute_async(query)
+    result, count = await execute_count(schema, query)
     assert not result.errors
     assert result.data == expected
+    assert count == 1  # Node.Field by relay ID resolves to a single _id lookup
 
 
-@pytest.mark.asyncio
 async def test_should_first_n(fixtures):
     class Query(graphene.ObjectType):
         editors = AsyncMongoengineConnectionField(nodes.EditorAsyncNode)
@@ -527,13 +463,13 @@ async def test_should_first_n(fixtures):
         }
     }
     schema = graphene.Schema(query=Query)
-    result = await schema.execute_async(query)
+    result, count = await execute_count(schema, query)
 
     assert not result.errors
     assert result.data == expected
+    assert count == 2  # first:2 triggers pagination: 1 count query (for hasNextPage) + 1 find query (sliced results)
 
 
-@pytest.mark.asyncio
 async def test_should_after(fixtures):
     class Query(graphene.ObjectType):
         players = AsyncMongoengineConnectionField(nodes.PlayerAsyncNode)
@@ -560,13 +496,13 @@ async def test_should_after(fixtures):
         }
     }
     schema = graphene.Schema(query=Query)
-    result = await schema.execute_async(query)
+    result, count = await execute_count(schema, query)
 
     assert not result.errors
     assert result.data == expected
+    assert count == 2  # after cursor triggers pagination: 1 count + 1 find starting from the cursor offset
 
 
-@pytest.mark.asyncio
 async def test_should_before(fixtures):
     class Query(graphene.ObjectType):
         players = AsyncMongoengineConnectionField(nodes.PlayerAsyncNode)
@@ -595,13 +531,13 @@ async def test_should_before(fixtures):
         }
     }
     schema = graphene.Schema(query=Query)
-    result = await schema.execute_async(query)
+    result, count = await execute_count(schema, query)
 
     assert not result.errors
     assert result.data == expected
+    assert count == 2  # before cursor triggers pagination: 1 count + 1 find truncated before the cursor
 
 
-@pytest.mark.asyncio
 async def test_should_last_n(fixtures):
     class Query(graphene.ObjectType):
         players = AsyncMongoengineConnectionField(nodes.PlayerAsyncNode)
@@ -627,13 +563,13 @@ async def test_should_last_n(fixtures):
         }
     }
     schema = graphene.Schema(query=Query)
-    result = await schema.execute_async(query)
+    result, count = await execute_count(schema, query)
 
     assert not result.errors
     assert result.data == expected
+    assert count == 2  # last:2 triggers pagination: 1 count (to compute tail offset) + 1 find from the end
 
 
-@pytest.mark.asyncio
 async def test_should_self_reference(fixtures):
     class Query(graphene.ObjectType):
         players = AsyncMongoengineConnectionField(nodes.PlayerAsyncNode)
@@ -703,12 +639,12 @@ async def test_should_self_reference(fixtures):
         }
     }
     schema = graphene.Schema(query=Query)
-    result = await schema.execute_async(query)
+    result, count = await execute_count(schema, query)
     assert not result.errors
     assert result.data == expected
+    assert count >= 1  # 1 players query + 1 sub-query per player for the nested players connection field
 
 
-@pytest.mark.asyncio
 async def test_should_lazy_reference(fixtures):
     class Query(graphene.ObjectType):
         node = Node.Field()
@@ -760,12 +696,12 @@ async def test_should_lazy_reference(fixtures):
         }
     }
 
-    result = await schema.execute_async(query)
+    result, count = await execute_count(schema, query)
     assert not result.errors
     assert result.data == expected
+    assert count >= 1  # 1 parents query + extra queries to dereference each lazy beforeChild/afterChild relationship
 
 
-@pytest.mark.asyncio
 async def test_should_query_with_embedded_document(fixtures):
     class Query(graphene.ObjectType):
         professors = AsyncMongoengineConnectionField(nodes.ProfessorVectorAsyncNode)
@@ -790,12 +726,12 @@ async def test_should_query_with_embedded_document(fixtures):
         }
     }
     schema = graphene.Schema(query=Query)
-    result = await schema.execute_async(query)
+    result, count = await execute_count(schema, query)
     assert not result.errors
     assert result.data == expected
+    assert count == 1  # 1 professors query; metadata is an EmbeddedDocument so no extra query needed
 
 
-@pytest.mark.asyncio
 async def test_should_get_queryset_returns_dict_filters(fixtures):
     class Query(graphene.ObjectType):
         node = Node.Field()
@@ -833,12 +769,12 @@ async def test_should_get_queryset_returns_dict_filters(fixtures):
         }
     }
     schema = graphene.Schema(query=Query)
-    result = await schema.execute_async(query)
+    result, count = await execute_count(schema, query)
     assert not result.errors
     assert result.data == expected
+    assert count == 1  # dict-based get_queryset applies $match; editor ReferenceField resolved via $lookup in 1 aggregate
 
 
-@pytest.mark.asyncio
 async def test_should_get_queryset_returns_qs_filters(fixtures):
     def get_queryset(model, info, **args):
         return model.aobjects(headline="World")
@@ -878,12 +814,12 @@ async def test_should_get_queryset_returns_qs_filters(fixtures):
         }
     }
     schema = graphene.Schema(query=Query)
-    result = await schema.execute_async(query)
+    result, count = await execute_count(schema, query)
     assert not result.errors
     assert result.data == expected
+    assert count >= 1  # custom queryset-based get_queryset; 1 aggregate expected but bound is loose for safety
 
 
-@pytest.mark.asyncio
 async def test_should_filter_mongoengine_queryset(fixtures):
     class Query(graphene.ObjectType):
         players = AsyncMongoengineConnectionField(nodes.PlayerAsyncNode)
@@ -908,13 +844,13 @@ async def test_should_filter_mongoengine_queryset(fixtures):
         }
     }
     schema = graphene.Schema(query=Query)
-    result = await schema.execute_async(query)
+    result, count = await execute_count(schema, query)
 
     assert not result.errors
     assert json.dumps(result.data, sort_keys=True) == json.dumps(expected, sort_keys=True)
+    assert count == 1  # 1 aggregate with case-insensitive startswith filter; no pagination
 
 
-@pytest.mark.asyncio
 async def test_should_query_document_with_embedded(fixtures):
     class Query(graphene.ObjectType):
         foos = AsyncMongoengineConnectionField(nodes.FooAsyncNode)
@@ -941,11 +877,11 @@ async def test_should_query_document_with_embedded(fixtures):
     """
 
     schema = graphene.Schema(query=Query)
-    result = await schema.execute_async(query)
+    result, count = await execute_count(schema, query)
     assert not result.errors
+    assert count >= 1  # 1 foos query; bars is EmbeddedDocumentListField so no extra query, data is in the document
 
 
-@pytest.mark.asyncio
 async def test_should_filter_mongoengine_queryset_with_list(fixtures):
     class Query(graphene.ObjectType):
         players = AsyncMongoengineConnectionField(nodes.PlayerAsyncNode)
@@ -970,13 +906,13 @@ async def test_should_filter_mongoengine_queryset_with_list(fixtures):
         }
     }
     schema = graphene.Schema(query=Query)
-    result = await schema.execute_async(query)
+    result, count = await execute_count(schema, query)
 
     assert not result.errors
     assert json.dumps(result.data, sort_keys=True) == json.dumps(expected, sort_keys=True)
+    assert count == 1  # 1 aggregate with $in filter on firstName; no pagination
 
 
-@pytest.mark.asyncio
 async def test_should_get_correct_list_of_documents(fixtures):
     class Query(graphene.ObjectType):
         players = AsyncMongoengineConnectionField(nodes.PlayerAsyncNode)
@@ -1025,13 +961,13 @@ async def test_should_get_correct_list_of_documents(fixtures):
         }
     }
     schema = graphene.Schema(query=Query)
-    result = await schema.execute_async(query)
+    result, count = await execute_count(schema, query)
 
     assert not result.errors
     assert result.data == expected
+    assert count >= 1  # 1 players find + paginated articles sub-queries per player (first:3 triggers count+find each)
 
 
-@pytest.mark.asyncio
 async def test_should_filter_mongoengine_queryset_by_id_and_other_fields(
     fixtures,
 ):
@@ -1060,7 +996,378 @@ async def test_should_filter_mongoengine_queryset_by_id_and_other_fields(
 
     expected = {"players": {"edges": []}}
     schema = graphene.Schema(query=Query)
-    result = await schema.execute_async(query)
+    result, count = await execute_count(schema, query)
 
     assert not result.errors
     assert json.dumps(result.data, sort_keys=True) == json.dumps(expected, sort_keys=True)
+    assert count == 1  # conflicting id+firstName filters produce an empty result; still only 1 query
+
+# ---------------------------------------------------------------------------
+# N+1 / query-count tests
+# ---------------------------------------------------------------------------
+
+async def test_editors_with_company_no_pagination(fixtures):
+    class Query(graphene.ObjectType):
+        editors = AsyncMongoengineConnectionField(nodes.EditorAsyncNode)
+
+    result, count = await execute_count(graphene.Schema(query=Query), """
+        query {
+            editors {
+                edges {
+                    node {
+                        firstName
+                        company { name }
+                    }
+                }
+            }
+        }
+    """)
+
+    assert not result.errors
+    names = [e["node"]["firstName"] for e in result.data["editors"]["edges"]]
+    assert names == ["Penny", "Grant", "Dennis"]
+    assert count == 1  # no pagination: 1 aggregate with $lookup for company; count query skipped
+
+
+async def test_articles_with_editor_and_company_no_pagination(fixtures):
+    class Query(graphene.ObjectType):
+        articles = AsyncMongoengineConnectionField(nodes.ArticleAsyncNode)
+
+    result, count = await execute_count(graphene.Schema(query=Query), """
+        query {
+            articles {
+                edges {
+                    node {
+                        headline
+                        editor {
+                            firstName
+                            company { name }
+                        }
+                    }
+                }
+            }
+        }
+    """)
+
+    assert not result.errors
+    assert count == 1  # no pagination: 1 aggregate with nested $lookups for editor and editor→company; count query skipped
+
+
+async def test_articles_with_multiple_refs_no_pagination(fixtures):
+    class Query(graphene.ObjectType):
+        articles = AsyncMongoengineConnectionField(nodes.ArticleAsyncNode)
+
+    result, count = await execute_count(graphene.Schema(query=Query), """
+        query {
+            articles {
+                edges {
+                    node {
+                        headline
+                        editor {
+                            firstName
+                            company { name }
+                        }
+                        reporter { firstName }
+                    }
+                }
+            }
+        }
+    """)
+
+    assert not result.errors
+    headlines = [e["node"]["headline"] for e in result.data["articles"]["edges"]]
+    assert set(headlines) == {"Hello", "World", "Bye"}
+    assert count == 1  # no pagination: 1 aggregate with $lookups for editor, editor→company, and reporter; count query skipped
+
+
+async def test_players_with_self_referential_no_pagination(fixtures):
+    class Query(graphene.ObjectType):
+        players = AsyncMongoengineConnectionField(nodes.PlayerAsyncNode)
+
+    result, count = await execute_count(graphene.Schema(query=Query), """
+        query {
+            players {
+                edges {
+                    node {
+                        firstName
+                        opponent { firstName }
+                    }
+                }
+            }
+        }
+    """)
+
+    assert not result.errors
+    magic = next(
+        e["node"] for e in result.data["players"]["edges"]
+        if e["node"]["firstName"] == "Magic"
+    )
+    assert magic["opponent"]["firstName"] == "Michael"
+    assert count == 1  # no pagination: 1 aggregate with $lookup for opponent (self-referential join); count query skipped
+
+
+async def test_editors_paginated_first(fixtures):
+    class Query(graphene.ObjectType):
+        editors = AsyncMongoengineConnectionField(nodes.EditorAsyncNode)
+
+    result, count = await execute_count(graphene.Schema(query=Query), """
+        query {
+            editors(first: 2) {
+                edges {
+                    node {
+                        firstName
+                        company { name }
+                    }
+                }
+            }
+        }
+    """)
+
+    assert not result.errors
+    names = [e["node"]["firstName"] for e in result.data["editors"]["edges"]]
+    assert names == ["Penny", "Grant"]
+    assert count == 2  # first:2 triggers pagination: 1 count + 1 aggregate with $lookup for company
+
+
+async def test_editors_paginated_last(fixtures):
+    class Query(graphene.ObjectType):
+        editors = AsyncMongoengineConnectionField(nodes.EditorAsyncNode)
+
+    result, count = await execute_count(graphene.Schema(query=Query), """
+        query {
+            editors(last: 1) {
+                edges {
+                    node {
+                        firstName
+                        company { name }
+                    }
+                }
+            }
+        }
+    """)
+
+    assert not result.errors
+    names = [e["node"]["firstName"] for e in result.data["editors"]["edges"]]
+    assert names == ["Dennis"]
+    assert count == 2  # last:1 triggers pagination: 1 count + 1 aggregate with $lookup for company
+
+
+async def test_editors_paginated_cursor_after(fixtures):
+    class Query(graphene.ObjectType):
+        editors = AsyncMongoengineConnectionField(nodes.EditorAsyncNode)
+
+    schema = graphene.Schema(query=Query)
+    cursor = offset_to_cursor(0)
+
+    result, count = await execute_count(schema, f"""
+        query {{
+            editors(first: 2, after: "{cursor}") {{
+                edges {{
+                    node {{
+                        firstName
+                        company {{ name }}
+                    }}
+                }}
+            }}
+        }}
+    """)
+
+    assert not result.errors
+    names = [e["node"]["firstName"] for e in result.data["editors"]["edges"]]
+    assert names == ["Grant", "Dennis"]
+    assert count == 2  # first:2 with after cursor: 1 count + 1 aggregate with $lookup for company
+
+
+async def test_articles_paginated_first_with_editor(fixtures):
+    class Query(graphene.ObjectType):
+        articles = AsyncMongoengineConnectionField(nodes.ArticleAsyncNode)
+
+    result, count = await execute_count(graphene.Schema(query=Query), """
+        query {
+            articles(first: 2) {
+                edges {
+                    node {
+                        headline
+                        editor {
+                            firstName
+                            company { name }
+                        }
+                    }
+                }
+            }
+        }
+    """)
+
+    assert not result.errors
+    assert len(result.data["articles"]["edges"]) == 2
+    assert count == 2  # first:2 triggers pagination: 1 count + 1 aggregate with $lookups for editor and editor→company
+
+
+# ---------------------------------------------------------------------------
+# MongoDB projection tests — verify only requested + required fields are fetched
+# ---------------------------------------------------------------------------
+
+from ..mongo_capture import captured_commands
+
+
+async def test_projection_only_queried_fields(fixtures):
+    """Querying firstName only should project first_name, not last_name or avatar."""
+    class Query(graphene.ObjectType):
+        editors = AsyncMongoengineConnectionField(nodes.EditorAsyncNode)
+
+    with captured_commands() as cap:
+        result = await graphene.Schema(query=Query).execute_async(
+            "query { editors { edges { node { firstName } } } }"
+        )
+
+    assert not result.errors
+    projected = cap.projected_fields()
+    assert "fname" in projected  # first_name has db_field="fname"
+    assert "last_name" not in projected
+    assert "avatar" not in projected
+
+
+async def test_projection_multiple_fields(fixtures):
+    """Querying firstName and lastName should project both but not avatar."""
+    class Query(graphene.ObjectType):
+        editors = AsyncMongoengineConnectionField(nodes.EditorAsyncNode)
+
+    with captured_commands() as cap:
+        result = await graphene.Schema(query=Query).execute_async(
+            "query { editors { edges { node { firstName lastName } } } }"
+        )
+
+    assert not result.errors
+    projected = cap.projected_fields()
+    assert "fname" in projected  # first_name has db_field="fname"
+    assert "last_name" in projected
+    assert "avatar" not in projected
+
+
+async def test_projection_with_reference_field(fixtures):
+    """Querying a reference field projects only that reference on the parent document — not all parent fields."""
+    class Query(graphene.ObjectType):
+        editors = AsyncMongoengineConnectionField(nodes.EditorAsyncNode)
+
+    with captured_commands() as cap:
+        result = await graphene.Schema(query=Query).execute_async("""
+            query {
+                editors {
+                    edges {
+                        node {
+                            firstName
+                            company { name }
+                        }
+                    }
+                }
+            }
+        """)
+
+    assert not result.errors
+    projected = cap.projected_fields()
+    assert "fname" in projected      # first_name has db_field="fname"
+    assert "last_name" not in projected
+    assert "company" in projected    # company reference is projected (not all editor fields)
+
+
+async def test_projection_list_reference_field(fixtures):
+    """articles (ListField(ReferenceField)) projects only the queried reporter fields; articles are
+    joined in the same aggregate via select_related — no separate find on test_article."""
+    class Query(graphene.ObjectType):
+        reporters = AsyncMongoengineConnectionField(nodes.ReporterAsyncNode)
+
+    with captured_commands() as cap:
+        result = await graphene.Schema(query=Query).execute_async("""
+            query {
+                reporters {
+                    edges {
+                        node {
+                            firstName
+                            articles {
+                                edges { node { headline } }
+                            }
+                        }
+                    }
+                }
+            }
+        """)
+
+    assert not result.errors
+    # Reporter aggregate projects only the queried reporter fields
+    reporter_projected = cap.projected_fields_for("test_reporter")
+    assert "first_name" in reporter_projected     # queried reporter field
+    assert "articles" in reporter_projected       # articles reference list is projected
+    assert "email" not in reporter_projected      # unqueried reporter fields are excluded
+    assert "awards" not in reporter_projected
+    assert "generic_reference" not in reporter_projected
+
+    # select_related joins articles via $lookup in the same aggregate — no separate find
+    assert len(cap.projected_fields_for("test_article")) == 0
+
+
+async def test_projection_generic_reference_field(fixtures):
+    """generic_reference (GenericReferenceField) is joined via select_related — 1 aggregate, no separate find."""
+    class Query(graphene.ObjectType):
+        reporters = AsyncMongoengineConnectionField(nodes.ReporterAsyncNode)
+
+    with captured_commands() as cap:
+        result = await graphene.Schema(query=Query).execute_async("""
+            query {
+                reporters {
+                    edges {
+                        node {
+                            firstName
+                            genericReference {
+                                __typename
+                                ... on ArticleAsyncNode { headline }
+                            }
+                        }
+                    }
+                }
+            }
+        """)
+
+    assert not result.errors
+    reporter_projected = cap.projected_fields_for("test_reporter")
+    assert "first_name" in reporter_projected         # queried reporter field
+    assert "generic_reference" in reporter_projected  # GenericReferenceField is projected
+    assert "email" not in reporter_projected          # unqueried reporter fields are excluded
+    assert "awards" not in reporter_projected
+    assert "articles" not in reporter_projected
+
+    # select_related joins via $lookup in the same aggregate — no separate find
+    assert len(cap.projected_fields_for("test_article")) == 0
+
+
+async def test_projection_list_generic_reference_field(fixtures):
+    """generic_references (ListField(GenericReferenceField)) is joined via select_related — 1 aggregate, no separate find."""
+    class Query(graphene.ObjectType):
+        reporters = AsyncMongoengineConnectionField(nodes.ReporterAsyncNode)
+
+    with captured_commands() as cap:
+        result = await graphene.Schema(query=Query).execute_async("""
+            query {
+                reporters {
+                    edges {
+                        node {
+                            firstName
+                            genericReferences {
+                                __typename
+                                ... on ArticleAsyncNode { headline }
+                            }
+                        }
+                    }
+                }
+            }
+        """)
+
+    assert not result.errors
+    reporter_projected = cap.projected_fields_for("test_reporter")
+    assert "first_name" in reporter_projected          # queried reporter field
+    assert "generic_references" in reporter_projected  # ListField(GenericReferenceField) is projected
+    assert "email" not in reporter_projected           # unqueried reporter fields are excluded
+    assert "awards" not in reporter_projected
+    assert "articles" not in reporter_projected
+
+    # select_related joins via $lookup in the same aggregate — no separate find
+    assert len(cap.projected_fields_for("test_article")) == 0

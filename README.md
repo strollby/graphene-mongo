@@ -107,22 +107,66 @@ query = '''
 result = await schema.execute_async(query)
 ```
 
+## Meta Options
+
+All options are declared inside the nested `Meta` class of an ObjectType.
+
+| Option                   | Type             | Description                                                             |
+|--------------------------|------------------|-------------------------------------------------------------------------|
+| `model`                  | `Document` class | **Required.** The MongoEngine document to expose.                       |
+| `interfaces`             | `tuple`          | e.g. `(Node,)` — enables Relay cursor pagination.                       |
+| `only_fields`            | `tuple[str]`     | Whitelist of field names to expose.                                     |
+| `exclude_fields`         | `tuple[str]`     | Field names to hide from the schema.                                    |
+| `required_fields`        | `tuple[str]`     | Fields always fetched from the DB regardless of query selection.        |
+| `non_required_fields`    | `tuple[str]`     | Force these graphene fields to be non-required.                         |
+| `filter_fields`          | `dict`           | Lookup-style filter arguments, e.g. `{"name": ["exact", "icontains"]}`. |
+| `non_filter_fields`      | `tuple[str]`     | Fields excluded from auto-generated filter arguments.                   |
+| `order_by`               | `str`            | Default MongoEngine ordering expression, e.g. `"-created_at"`.          |
+| `registry`               | `Registry`       | Explicit type registry (useful for isolating types in tests).           |
+| `connection_field_class` | `type`           | Override the connection field class for this type.                      |
+
+## Field Type Mapping
+
+MongoEngine fields are converted to GraphQL types automatically:
+
+| MongoEngine                             | GraphQL                                                            |
+|-----------------------------------------|--------------------------------------------------------------------|
+| `StringField`, `EmailField`, `URLField` | `String`                                                           |
+| `IntField`, `SequenceField`             | `Int`                                                              |
+| `FloatField`                            | `Float`                                                            |
+| `BooleanField`                          | `Boolean`                                                          |
+| `DateTimeField`                         | `DateTime`                                                         |
+| `DateField`                             | `Date`                                                             |
+| `DecimalField`, `Decimal128Field`       | `Decimal`                                                          |
+| `UUIDField`, `ObjectIdField`            | `ID`                                                               |
+| `DictField`, `MapField`                 | `JSONString`                                                       |
+| `FileField`                             | `FileFieldType` (`contentType`, `md5`, `length`, `data` as base64) |
+| `PointField`                            | `PointFieldType` (`type`, `coordinates`)                           |
+| `PolygonField`                          | `PolygonFieldType`                                                 |
+| `MultiPolygonField`                     | `MultiPolygonFieldType`                                            |
+| `ReferenceField`                        | Resolved graphene type (lazy, via `Dynamic`)                       |
+| `EmbeddedDocumentField`                 | Resolved graphene type (lazy, via `Dynamic`)                       |
+| `ListField(ReferenceField(...))`        | `List` or `ConnectionField` if the target is a Relay `Node`        |
+| `GenericReferenceField`                 | `Union` of registered `choices`                                    |
+| `EnumField`                             | `graphene.Enum` (auto-registered)                                  |
+
 To learn more check out the following [examples](examples/):
 
 * [Flask MongoEngine example](examples/flask_mongoengine)
 * [Django MongoEngine example](examples/django_mongoengine)
 * [Falcon MongoEngine example](examples/falcon_mongoengine)
+* [FastAPI MongoEngine example](examples/fastapi_mongoengine)
 
 ## Contributing
 
 After cloning this repo, ensure dependencies are installed by running:
 
 ```sh
-pip install -r requirements.txt
+uv sync
 ```
 
 After developing, the full test suite can be evaluated by running:
 
 ```sh
-make test
+uv run make test
 ```

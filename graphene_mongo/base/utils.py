@@ -1,6 +1,3 @@
-from __future__ import unicode_literals
-
-from collections import OrderedDict
 import enum
 import inspect
 from typing import Callable, Optional
@@ -15,7 +12,6 @@ from graphql import (
     GraphQLSkipDirective,
     VariableNode,
 )
-from graphql import GraphQLResolveInfo
 from graphql_relay.connection.array_connection import offset_to_cursor
 import mongoengine
 from mongoengine.base.common import _DocumentRegistry
@@ -42,7 +38,7 @@ def get_model_fields(model, excluding=None):
         if attr_name in excluding:
             continue
         attributes[attr_name] = attr
-    return OrderedDict(sorted(attributes.items()))
+    return dict(sorted(attributes.items()))
 
 
 def get_model_reference_fields(model, excluding=None):
@@ -62,15 +58,6 @@ def is_valid_mongoengine_model(model):
     return inspect.isclass(model) and (
         issubclass(model, mongoengine.Document) or issubclass(model, mongoengine.EmbeddedDocument)
     )
-
-
-# noqa
-def get_type_for_document(schema, document):
-    types = schema.types.values()
-    for _type in types:
-        type_document = hasattr(_type, "_meta") and getattr(_type._meta, "document", None)
-        if document == type_document:
-            return _type
 
 
 def get_field_description(field, registry=None):

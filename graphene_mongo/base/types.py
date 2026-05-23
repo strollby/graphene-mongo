@@ -1,5 +1,3 @@
-from collections import OrderedDict
-
 import graphene
 import mongoengine
 from graphene.relay import Connection, Node
@@ -20,8 +18,8 @@ def construct_fields(
     executor: ExecutorEnum = ExecutorEnum.SYNC,
 ):
     _model_fields = get_model_fields(model)
-    fields = OrderedDict()
-    self_referenced = OrderedDict()
+    fields = dict()
+    self_referenced = dict()
     for name, field in _model_fields.items():
         is_not_in_only = only_fields and name not in only_fields
         is_excluded = name in exclude_fields
@@ -50,7 +48,7 @@ def construct_fields(
 
 
 def construct_self_referenced_fields(self_referenced, registry, executor=ExecutorEnum.SYNC):
-    fields = OrderedDict()
+    fields = dict()
     for name, field in self_referenced.items():
         converted = convert_mongoengine_field(field, registry, executor)
         if not converted:

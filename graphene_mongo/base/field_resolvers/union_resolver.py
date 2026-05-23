@@ -5,7 +5,6 @@ from bson import ObjectId
 from graphene.utils.str_converters import to_snake_case
 import mongoengine
 from mongoengine import Document
-from mongoengine.base import LazyReference
 
 from graphene_mongo.base.utils import ExecutorEnum, get_document, get_queried_union_types
 
@@ -54,10 +53,11 @@ class UnionFieldResolver:
         return document(id=document_id)
 
     @staticmethod
-    def resolver(field, registry, executor) -> Callable:
+    def reference_resolver(field, registry, executor) -> Callable:
         def resolver(root, *args, **kwargs) -> Optional[Document]:
-            resolver_fun = UnionFieldResolver.__reference_resolver_common
-            result = resolver_fun(field, registry, executor, root, *args, **kwargs)
+            result = UnionFieldResolver.__reference_resolver_common(
+                field, registry, executor, root, *args, **kwargs
+            )
             if not isinstance(result, tuple):
                 return result
             document, only_fields, pk = result
@@ -66,10 +66,11 @@ class UnionFieldResolver:
         return resolver
 
     @staticmethod
-    def resolver_async(field, registry, executor) -> Callable:
+    def reference_resolver_async(field, registry, executor) -> Callable:
         async def resolver(root, *args, **kwargs) -> Optional[Document]:
-            resolver_fun = UnionFieldResolver.__reference_resolver_common
-            result = resolver_fun(field, registry, executor, root, *args, **kwargs)
+            result = UnionFieldResolver.__reference_resolver_common(
+                field, registry, executor, root, *args, **kwargs
+            )
             if not isinstance(result, tuple):
                 return result
             model, only_fields, document_id = result

@@ -248,10 +248,10 @@ def convert_field_to_union(field, registry=None, executor: ExecutorEnum = Execut
             _union,
             resolver=get_field_resolver(
                 field_resolver=field_resolver,
-                default_sync_resolver=UnionFieldResolver.resolver(
+                default_sync_resolver=UnionFieldResolver.reference_resolver(
                     field=field, registry=registry, executor=executor
                 ),
-                default_async_resolver=UnionFieldResolver.resolver_async(
+                default_async_resolver=UnionFieldResolver.reference_resolver_async(
                     field=field, registry=registry, executor=executor
                 ),
                 executor=executor,

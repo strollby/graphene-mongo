@@ -2,7 +2,6 @@ from __future__ import absolute_import
 
 from collections import OrderedDict
 from functools import reduce
-from itertools import filterfalse
 
 import bson
 import graphene

@@ -6,8 +6,6 @@ from graphene.utils.str_converters import to_snake_case
 from .fields import MongoengineConnectionField
 from ..base.registry import get_global_registry, get_inputs_registry
 from ..base.types import (
-    construct_fields,
-    construct_self_referenced_fields,
     create_graphene_generic_class as _create,
 )
 from ..base.utils import ExecutorEnum, get_query_fields, get_select_related_paths

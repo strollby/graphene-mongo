@@ -10,10 +10,39 @@ from graphene_mongo.base.utils import ExecutorEnum, get_document, get_queried_un
 
 
 class UnionFieldResolver:
+    """Resolver factory for MongoEngine ``GenericReferenceField``.
+
+    Handles lazy de-referencing of generic references (fields that can point to
+    different document types). Identifies the concrete document type at resolve time,
+    then fetches only the fields requested in the current GraphQL query.
+    """
+
     @staticmethod
     def __reference_resolver_common(
         field, registry, executor: ExecutorEnum, root, *args, **kwargs
     ) -> Optional[Union[tuple[Document, set[str], ObjectId], Document]]:
+        """Shared pre-fetch logic for both sync and async union resolvers.
+
+        Reads the raw generic reference from the parent document, identifies the
+        target document type, and determines which fields need to be fetched. Returns
+        the already-loaded document if it has been fetched, or a tuple for the caller
+        to query.
+
+        Args:
+            field: The MongoEngine ``GenericReferenceField`` instance being resolved.
+            registry (Registry): Active type registry used to look up the target type.
+            executor (ExecutorEnum): ``SYNC`` or ``ASYNC``.
+            root: The parent MongoEngine document instance.
+            *args: GraphQL positional args; ``args[0]`` must be the resolve info.
+            **kwargs: GraphQL keyword args (unused here).
+
+        Returns:
+            ``Document`` — if the reference was already fetched (e.g. via ``select_related``).
+            ``tuple[type, set[str], ObjectId]`` — ``(document_class, fields_to_fetch, pk)``
+            if a DB query is required.
+            ``Document(id=pk)`` — a stub instance if the type is not in the queried union.
+            ``None`` — if the field value is empty / unset.
+        """
         from graphene_mongo.base.converter import convert_mongoengine_field
 
         de_referenced = getattr(root, field.name or field.db_name)
@@ -54,6 +83,19 @@ class UnionFieldResolver:
 
     @staticmethod
     def reference_resolver(field, registry, executor) -> Callable:
+        """Return a synchronous resolver for a ``GenericReferenceField``.
+
+        The returned resolver fetches the referenced document using
+        ``model.objects.only(*fields).get(pk=pk)``.
+
+        Args:
+            field: The MongoEngine ``GenericReferenceField`` instance.
+            registry (Registry): Active type registry.
+            executor (ExecutorEnum): Should be ``ExecutorEnum.SYNC``.
+
+        Returns:
+            callable: ``resolver(root, *args, **kwargs) → Document | None``
+        """
         def resolver(root, *args, **kwargs) -> Optional[Document]:
             result = UnionFieldResolver.__reference_resolver_common(
                 field, registry, executor, root, *args, **kwargs
@@ -67,6 +109,19 @@ class UnionFieldResolver:
 
     @staticmethod
     def reference_resolver_async(field, registry, executor) -> Callable:
+        """Return an asynchronous resolver for a ``GenericReferenceField``.
+
+        The returned coroutine fetches the referenced document using
+        ``await model.aobjects.only(*fields).get(pk=pk)``.
+
+        Args:
+            field: The MongoEngine ``GenericReferenceField`` instance.
+            registry (Registry): Active type registry.
+            executor (ExecutorEnum): Should be ``ExecutorEnum.ASYNC``.
+
+        Returns:
+            callable: ``async resolver(root, *args, **kwargs) → Document | None``
+        """
         async def resolver(root, *args, **kwargs) -> Optional[Document]:
             result = UnionFieldResolver.__reference_resolver_common(
                 field, registry, executor, root, *args, **kwargs

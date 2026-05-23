@@ -17,6 +17,38 @@ def construct_fields(
     non_required_fields,
     executor: ExecutorEnum = ExecutorEnum.SYNC,
 ):
+    """Convert MongoEngine model fields to graphene field instances.
+
+    Iterates over the model's fields in alphabetical order (from
+    :func:`~graphene_mongo.base.utils.get_model_fields`), applying the
+    ``only_fields`` / ``exclude_fields`` filters, and delegates each field to
+    :func:`~graphene_mongo.base.converter.convert_mongoengine_field`.
+
+    Self-referential ``ListField`` entries (a list whose element type is the
+    owning model) are returned separately so they can be registered in a second
+    pass after the owning graphene type exists in the registry.
+
+    Args:
+        model: MongoEngine ``Document`` or ``EmbeddedDocument`` class.
+        registry (Registry): Active type registry.
+        only_fields (tuple[str]): Whitelist of field names to include;
+            an empty tuple means *all* fields are included.
+        exclude_fields (tuple[str]): Field names to unconditionally skip.
+        non_required_fields (tuple[str]): Field names whose ``required`` flag
+            is forced to ``False`` in the generated graphene field.
+        executor (ExecutorEnum): ``SYNC`` or ``ASYNC`` — controls which resolver
+            variant is attached to relationship fields.
+
+    Returns:
+        tuple[dict, dict]:
+            ``(converted_fields, self_referenced)``
+
+            - *converted_fields*: ``{name: graphene_field}`` for all immediately
+              usable fields.
+            - *self_referenced*: ``{name: mongoengine_field}`` for ``ListField``
+              entries that reference the owning model (resolved in a second pass
+              by :func:`construct_self_referenced_fields`).
+    """
     _model_fields = get_model_fields(model)
     fields = dict()
     self_referenced = dict()
@@ -48,6 +80,20 @@ def construct_fields(
 
 
 def construct_self_referenced_fields(self_referenced, registry, executor=ExecutorEnum.SYNC):
+    """Convert self-referential ListFields after the owning type is registered.
+
+    Called in a second pass because the graphene type must exist in the registry
+    before its own circular reference field can be resolved by the converter.
+
+    Args:
+        self_referenced (dict): ``{name: mongoengine_field}`` mapping returned
+            by :func:`construct_fields` for self-referential ListFields.
+        registry (Registry): Active type registry (owning type already registered).
+        executor (ExecutorEnum): ``SYNC`` or ``ASYNC``.
+
+    Returns:
+        dict: ``{name: graphene_field}`` for the successfully converted fields.
+    """
     fields = dict()
     for name, field in self_referenced.items():
         converted = convert_mongoengine_field(field, registry, executor)
@@ -66,6 +112,46 @@ def create_graphene_generic_class(
     inputs_registry_factory,
     default_connection_field_class,
 ):
+    """Factory that produces a MongoEngine-aware graphene ObjectType base class.
+
+    The returned class (``GrapheneMongoengineGenericType``) is the shared ancestor
+    for both ``MongoengineObjectType`` (sync) and ``AsyncMongoengineObjectType``
+    (async). Callers inject the executor, registry factories, and default
+    connection field class so that the same factory body serves both variants
+    without duplication.
+
+    The produced class exposes:
+
+    - ``__init_subclass_with_meta__`` — wires up ``model``, ``registry``,
+      ``fields``, and ``connection`` when a user declares
+      ``class MyType(MongoengineObjectType): class Meta: model = Article``.
+    - ``rescan_fields()`` — re-converts fields that were unresolvable at first
+      registration (e.g. forward references to types defined later).
+    - ``is_type_of()`` — used by graphene to resolve abstract / union types.
+    - ``resolve_id()`` — returns ``str(self.id)`` for the Relay global ID.
+
+    ``get_node`` is **not** defined here; it differs between sync (plain method)
+    and async (``async def``), and is injected by the caller via classmethod
+    attribute assignment after this factory returns.
+
+    Args:
+        object_type: graphene base class to inherit from
+            (``ObjectType``, ``Interface``, or ``InputObjectType``).
+        option_type: Matching options class
+            (``ObjectTypeOptions``, ``InterfaceOptions``, etc.).
+        executor (ExecutorEnum): ``SYNC`` or ``ASYNC``.
+        global_registry_factory (callable): Zero-argument callable that returns
+            the singleton ``Registry`` for regular object types.
+        inputs_registry_factory (callable): Zero-argument callable that returns
+            the singleton ``Registry`` for ``InputObjectType`` registrations.
+        default_connection_field_class (type): ``ConnectionField`` subclass used
+            when ``Meta.connection_field_class`` is not specified.
+
+    Returns:
+        tuple[type, type]:
+            ``(GrapheneMongoengineGenericType, MongoengineGenericObjectTypeOptions)``
+    """
+
     class MongoengineGenericObjectTypeOptions(option_type):
         model = None
         registry = None  # type: Registry
@@ -96,6 +182,41 @@ def create_graphene_generic_class(
             order_by=None,
             **options,
         ):
+            """Wire up a user-defined MongoengineObjectType subclass.
+
+            Called automatically by Python when the user writes
+            ``class MyType(MongoengineObjectType): class Meta: model = Article``.
+
+            Args:
+                model: MongoEngine ``Document`` or ``EmbeddedDocument`` class
+                    that backs this graphene type. Required.
+                registry (Registry | None): Explicit registry to use; when
+                    omitted the appropriate singleton is chosen automatically.
+                skip_registry (bool): If ``True``, the type is not registered
+                    after creation (useful for abstract base types).
+                only_fields (tuple[str]): Whitelist of model field names to expose.
+                required_fields (tuple[str]): Fields always fetched from MongoDB
+                    regardless of the GraphQL query selection.
+                exclude_fields (tuple[str]): Model field names to hide.
+                non_required_fields (tuple[str]): Fields whose graphene ``required``
+                    flag is forced to ``False``.
+                filter_fields (dict | None): Lookup-style filter declarations,
+                    e.g. ``{"name": ["exact", "icontains"]}``.
+                non_filter_fields (tuple[str]): Fields excluded from auto-generated
+                    filter arguments.
+                connection (type | None): Explicit Relay connection class.
+                connection_class (type | None): Used to auto-create the connection.
+                use_connection (bool | None): Override connection auto-detection.
+                connection_field_class (type | None): ``ConnectionField`` subclass
+                    for this type's connection field.
+                interfaces (tuple): graphene interfaces implemented by this type.
+                _meta: Pre-built options object; raises if wrong type.
+                order_by (str | None): Default MongoEngine ordering expression.
+                **options: Forwarded to the graphene base class.
+
+            Raises:
+                AssertionError: On invalid model, registry, connection, or _meta.
+            """
             assert is_valid_mongoengine_model(model), (
                 "The attribute model in {}.Meta must be a valid Mongoengine Model. "
                 'Received "{}" instead.'
@@ -179,7 +300,13 @@ def create_graphene_generic_class(
 
         @classmethod
         def rescan_fields(cls):
-            """Attempts to rescan fields and will insert any not converted initially"""
+            """Re-convert model fields that could not be resolved at first registration.
+
+            Useful when types are defined in any order and some fields reference
+            types that were not yet in the registry during the initial pass.
+            Only adds newly resolvable fields — existing fields are not replaced.
+            Self-referenced fields are intentionally excluded (they cannot change).
+            """
             converted_fields, _ = construct_fields(
                 cls._meta.model,
                 cls._meta.registry,
@@ -195,6 +322,21 @@ def create_graphene_generic_class(
 
         @classmethod
         def is_type_of(cls, root, info):
+            """Determine whether *root* is an instance of this graphene type.
+
+            Used by graphene when resolving abstract types and union members.
+            Accepts GridFSProxy objects (FileField values) as a special case.
+
+            Args:
+                root: The resolved Python object to check.
+                info (GraphQLResolveInfo): GraphQL resolver context.
+
+            Returns:
+                bool: ``True`` if *root* is compatible with this type.
+
+            Raises:
+                Exception: If *root* is not a valid MongoEngine model instance.
+            """
             if isinstance(root, cls):
                 return True
             if isinstance(root, mongoengine.GridFSProxy):
@@ -204,6 +346,11 @@ def create_graphene_generic_class(
             return isinstance(root, cls._meta.model)
 
         def resolve_id(self, info):
+            """Return the document's primary key as a string for the Relay ``id`` field.
+
+            Returns:
+                str: ``str(self.id)``
+            """
             return str(self.id)
 
     return GrapheneMongoengineGenericType, MongoengineGenericObjectTypeOptions

@@ -21,11 +21,31 @@ from .utils import (
 
 
 class MongoEngineConversionError(Exception):
-    pass
+    """Raised when a MongoEngine field type has no registered graphene converter."""
 
 
 @singledispatch
 def convert_mongoengine_field(field, registry=None, executor: ExecutorEnum = ExecutorEnum.SYNC):
+    """Convert a MongoEngine field instance into the corresponding graphene field.
+
+    Dispatches via ``@singledispatch`` to a type-specific handler registered
+    below. All handlers share the same signature so callers do not need to know
+    the concrete field type.
+
+    Args:
+        field: A MongoEngine field instance (e.g. ``StringField``, ``ReferenceField``).
+        registry (Registry | None): Active type registry used to resolve
+            referenced document types to their graphene equivalents.
+        executor (ExecutorEnum): ``SYNC`` or ``ASYNC`` — controls which resolver
+            variant is attached to relationship fields.
+
+    Returns:
+        A graphene field instance: ``graphene.String``, ``graphene.Field``,
+        ``graphene.List``, ``graphene.Dynamic``, etc.
+
+    Raises:
+        MongoEngineConversionError: If no handler is registered for *field*'s type.
+    """
     raise MongoEngineConversionError(
         "Don't know how to convert the MongoEngine field %s (%s)" % (field, field.__class__)
     )
@@ -35,6 +55,7 @@ def convert_mongoengine_field(field, registry=None, executor: ExecutorEnum = Exe
 @convert_mongoengine_field.register(mongoengine.StringField)
 @convert_mongoengine_field.register(mongoengine.URLField)
 def convert_field_to_string(field, registry=None, executor: ExecutorEnum = ExecutorEnum.SYNC):
+    """Convert EmailField / StringField / URLField → graphene.String."""
     return graphene.String(
         description=get_field_description(field, registry),
         required=get_field_is_required(field, registry),
@@ -44,6 +65,7 @@ def convert_field_to_string(field, registry=None, executor: ExecutorEnum = Execu
 @convert_mongoengine_field.register(mongoengine.UUIDField)
 @convert_mongoengine_field.register(mongoengine.ObjectIdField)
 def convert_field_to_id(field, registry=None, executor: ExecutorEnum = ExecutorEnum.SYNC):
+    """Convert UUIDField / ObjectIdField → graphene.ID."""
     return graphene.ID(
         description=get_field_description(field, registry),
         required=get_field_is_required(field, registry),
@@ -53,6 +75,7 @@ def convert_field_to_id(field, registry=None, executor: ExecutorEnum = ExecutorE
 @convert_mongoengine_field.register(mongoengine.IntField)
 @convert_mongoengine_field.register(mongoengine.SequenceField)
 def convert_field_to_int(field, registry=None, executor: ExecutorEnum = ExecutorEnum.SYNC):
+    """Convert IntField / SequenceField → graphene.Int."""
     return graphene.Int(
         description=get_field_description(field, registry),
         required=get_field_is_required(field, registry),
@@ -61,6 +84,7 @@ def convert_field_to_int(field, registry=None, executor: ExecutorEnum = Executor
 
 @convert_mongoengine_field.register(mongoengine.BooleanField)
 def convert_field_to_boolean(field, registry=None, executor: ExecutorEnum = ExecutorEnum.SYNC):
+    """Convert BooleanField → graphene.Boolean."""
     return graphene.Boolean(
         description=get_field_description(field, registry),
         required=get_field_is_required(field, registry),
@@ -69,6 +93,7 @@ def convert_field_to_boolean(field, registry=None, executor: ExecutorEnum = Exec
 
 @convert_mongoengine_field.register(mongoengine.FloatField)
 def convert_field_to_float(field, registry=None, executor: ExecutorEnum = ExecutorEnum.SYNC):
+    """Convert FloatField → graphene.Float."""
     return graphene.Float(
         description=get_field_description(field, registry),
         required=get_field_is_required(field, registry),
@@ -78,6 +103,7 @@ def convert_field_to_float(field, registry=None, executor: ExecutorEnum = Execut
 @convert_mongoengine_field.register(mongoengine.Decimal128Field)
 @convert_mongoengine_field.register(mongoengine.DecimalField)
 def convert_field_to_decimal(field, registry=None, executor: ExecutorEnum = ExecutorEnum.SYNC):
+    """Convert Decimal128Field / DecimalField → graphene.Decimal."""
     return graphene.Decimal(
         description=get_field_description(field, registry),
         required=get_field_is_required(field, registry),
@@ -86,6 +112,7 @@ def convert_field_to_decimal(field, registry=None, executor: ExecutorEnum = Exec
 
 @convert_mongoengine_field.register(mongoengine.DateTimeField)
 def convert_field_to_datetime(field, registry=None, executor: ExecutorEnum = ExecutorEnum.SYNC):
+    """Convert DateTimeField → graphene.DateTime."""
     return graphene.DateTime(
         description=get_field_description(field, registry),
         required=get_field_is_required(field, registry),
@@ -94,6 +121,7 @@ def convert_field_to_datetime(field, registry=None, executor: ExecutorEnum = Exe
 
 @convert_mongoengine_field.register(mongoengine.DateField)
 def convert_field_to_date(field, registry=None, executor: ExecutorEnum = ExecutorEnum.SYNC):
+    """Convert DateField → graphene.Date."""
     return graphene.Date(
         description=get_field_description(field, registry),
         required=get_field_is_required(field, registry),
@@ -103,6 +131,7 @@ def convert_field_to_date(field, registry=None, executor: ExecutorEnum = Executo
 @convert_mongoengine_field.register(mongoengine.DictField)
 @convert_mongoengine_field.register(mongoengine.MapField)
 def convert_field_to_jsonstring(field, registry=None, executor: ExecutorEnum = ExecutorEnum.SYNC):
+    """Convert DictField / MapField → graphene JSONString (arbitrary JSON blob)."""
     return JSONString(
         description=get_field_description(field, registry),
         required=get_field_is_required(field, registry),
@@ -111,6 +140,7 @@ def convert_field_to_jsonstring(field, registry=None, executor: ExecutorEnum = E
 
 @convert_mongoengine_field.register(mongoengine.PointField)
 def convert_point_to_field(field, registry=None, executor: ExecutorEnum = ExecutorEnum.SYNC):
+    """Convert PointField → graphene.Field(PointFieldType)."""
     return graphene.Field(
         advanced_types.PointFieldType,
         description=get_field_description(field, registry),
@@ -120,6 +150,7 @@ def convert_point_to_field(field, registry=None, executor: ExecutorEnum = Execut
 
 @convert_mongoengine_field.register(mongoengine.PolygonField)
 def convert_polygon_to_field(field, registry=None, executor: ExecutorEnum = ExecutorEnum.SYNC):
+    """Convert PolygonField → graphene.Field(PolygonFieldType)."""
     return graphene.Field(
         advanced_types.PolygonFieldType,
         description=get_field_description(field, registry),
@@ -129,6 +160,7 @@ def convert_polygon_to_field(field, registry=None, executor: ExecutorEnum = Exec
 
 @convert_mongoengine_field.register(mongoengine.MultiPolygonField)
 def convert_multipolygon_to_field(field, registry=None, executor: ExecutorEnum = ExecutorEnum.SYNC):
+    """Convert MultiPolygonField → graphene.Field(MultiPolygonFieldType)."""
     return graphene.Field(
         advanced_types.MultiPolygonFieldType,
         description=get_field_description(field, registry),
@@ -138,6 +170,7 @@ def convert_multipolygon_to_field(field, registry=None, executor: ExecutorEnum =
 
 @convert_mongoengine_field.register(mongoengine.FileField)
 def convert_file_to_field(field, registry=None, executor: ExecutorEnum = ExecutorEnum.SYNC):
+    """Convert FileField → graphene.Field(FileFieldType)."""
     return graphene.Field(
         advanced_types.FileFieldType,
         description=get_field_description(field, registry),
@@ -149,6 +182,20 @@ def convert_file_to_field(field, registry=None, executor: ExecutorEnum = Executo
 @convert_mongoengine_field.register(mongoengine.EmbeddedDocumentListField)
 @convert_mongoengine_field.register(mongoengine.GeoPointField)
 def convert_field_to_list(field, registry=None, executor: ExecutorEnum = ExecutorEnum.SYNC):
+    """Convert ListField / EmbeddedDocumentListField / GeoPointField → graphene.List.
+
+    For lists of references a resolver is attached that lazily fetches the
+    referenced documents. For lists of embedded documents or scalars the list
+    type is inferred from the inner field's converted type.
+
+    Args:
+        field: The MongoEngine list field instance.
+        registry (Registry | None): Active type registry.
+        executor (ExecutorEnum): Controls which resolver variant is attached.
+
+    Returns:
+        graphene.List or a ConnectionField if the inner type is a Relay Node.
+    """
     base_type = convert_mongoengine_field(field.field, registry=registry, executor=executor)
     if isinstance(base_type, graphene.Field):
         if isinstance(field.field, mongoengine.GenericReferenceField):
@@ -197,6 +244,21 @@ def convert_field_to_list(field, registry=None, executor: ExecutorEnum = Executo
 @convert_mongoengine_field.register(mongoengine.GenericEmbeddedDocumentField)
 @convert_mongoengine_field.register(mongoengine.GenericReferenceField)
 def convert_field_to_union(field, registry=None, executor: ExecutorEnum = ExecutorEnum.SYNC):
+    """Convert GenericEmbeddedDocumentField / GenericReferenceField → graphene Union Field.
+
+    Builds a dynamic graphene.Union type from the field's ``choices`` list,
+    then wraps it in a ``graphene.Field`` with an appropriate resolver that
+    identifies the concrete type at query time.
+
+    Args:
+        field: The MongoEngine generic field instance.
+        registry (Registry | None): Active type registry.
+        executor (ExecutorEnum): Controls which resolver variant is attached.
+
+    Returns:
+        graphene.Field wrapping the generated Union type, or ``None`` if
+        none of the choices have been registered yet.
+    """
     _types = []
     for choice in field.choices:
         if isinstance(field, mongoengine.GenericReferenceField):
@@ -266,6 +328,22 @@ def convert_field_to_union(field, registry=None, executor: ExecutorEnum = Execut
 @convert_mongoengine_field.register(mongoengine.EmbeddedDocumentField)
 @convert_mongoengine_field.register(mongoengine.ReferenceField)
 def convert_field_to_dynamic(field, registry=None, executor: ExecutorEnum = ExecutorEnum.SYNC):
+    """Convert EmbeddedDocumentField / ReferenceField → graphene.Dynamic.
+
+    Returns a ``graphene.Dynamic`` so that the target type is resolved lazily
+    at schema build time, allowing forward references between types that are
+    defined in any order. A reference-field resolver is attached for
+    ``ReferenceField`` to handle lazy de-referencing.
+
+    Args:
+        field: The MongoEngine embedded or reference field instance.
+        registry (Registry | None): Active type registry.
+        executor (ExecutorEnum): Controls which resolver variant is attached.
+
+    Returns:
+        graphene.Dynamic: Evaluates to a ``graphene.Field`` once the target
+        type is available in the registry.
+    """
     model = field.document_type
 
     def dynamic_type():
@@ -310,6 +388,20 @@ def convert_field_to_dynamic(field, registry=None, executor: ExecutorEnum = Exec
 
 @convert_mongoengine_field.register(mongoengine.EnumField)
 def convert_field_to_enum(field, registry=None, executor: ExecutorEnum = ExecutorEnum.SYNC):
+    """Convert EnumField → graphene.Field wrapping a graphene.Enum.
+
+    Registers the Python enum class with the registry on first encounter so
+    that the same graphene.Enum wrapper is reused for all fields sharing the
+    same enum class.
+
+    Args:
+        field: The MongoEngine EnumField instance.
+        registry (Registry): Active type registry (must not be None).
+        executor (ExecutorEnum): Unused for scalar enum fields.
+
+    Returns:
+        graphene.Field: Wraps the registered graphene.Enum type.
+    """
     if not registry.check_enum_already_exist(field._enum_cls):
         registry.register_enum(field._enum_cls)
     _type = registry.get_type_for_enum(field._enum_cls)

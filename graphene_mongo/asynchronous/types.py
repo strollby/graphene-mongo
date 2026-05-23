@@ -9,6 +9,27 @@ from ..base.utils import ExecutorEnum, get_query_fields, get_select_related_path
 
 
 def create_graphene_generic_class_async(object_type, option_type):
+    """Create an async MongoengineObjectType base class and its options class.
+
+    Thin wrapper around :func:`~graphene_mongo.base.types.create_graphene_generic_class`
+    that injects async-specific dependencies (async registry factories, async connection
+    field class, and an ``async def get_node`` classmethod).
+
+    ``get_node`` is injected via attribute assignment rather than subclassing to avoid
+    triggering ``__init_subclass_with_meta__`` on the intermediate class.
+
+    Args:
+        object_type: graphene base class to inherit from
+            (e.g. ``ObjectType``, ``Interface``).
+        option_type: Matching options class
+            (e.g. ``ObjectTypeOptions``, ``InterfaceOptions``).
+
+    Returns:
+        tuple[type, type]:
+            ``(GenericType, Options)`` — the generated base class and its options class.
+            ``GenericType.get_node`` is an async classmethod that uses
+            ``await model.aobjects.only(*fields).get(pk=id)``.
+    """
     GenericType, Options = _create(
         object_type,
         option_type,

@@ -36,12 +36,13 @@ Homepage = "https://github.com/graphql-python/graphene-mongo"
 Repository = "https://github.com/graphql-python/graphene-mongo"
 
 [tool.uv.sources]
-mongoengine = { git = "https://github.com/strollby/mongoengine", rev = "v0.30.0-alpha.3" }
+mongoengine = { git = "https://github.com/strollby/mongoengine", rev = "v0.30.0-alpha.4" }
 
 [dependency-groups]
 dev = [
     "sphinx>=8.1.3",
     "sphinx-autobuild>=2024.10.3",
+    "pre-commit>=4.0.0",
 ]
 test = [
     "pytest",

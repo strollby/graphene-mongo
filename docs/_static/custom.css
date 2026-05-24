@@ -1,0 +1,5 @@
+/* Remove paragraph margin inside table cells for compact tables */
+.documentwrapper td p,
+.documentwrapper th p {
+    margin: 0;
+}

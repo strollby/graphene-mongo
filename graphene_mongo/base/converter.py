@@ -6,11 +6,7 @@ from graphene.utils.str_converters import to_camel_case
 import mongoengine
 
 from . import advanced_types
-from .field_resolvers import (
-    DynamicReferenceFieldResolver,
-    ListFieldResolver,
-    UnionFieldResolver,
-)
+from .field_resolvers import DynamicReferenceFieldResolver
 from .utils import (
     ExecutorEnum,
     get_field_description,
@@ -203,15 +199,6 @@ def convert_field_to_list(field, registry=None, executor: ExecutorEnum = Executo
                 base_type._type,
                 description=get_field_description(field, registry),
                 required=get_field_is_required(field, registry),
-                resolver=get_field_resolver(
-                    default_sync_resolver=ListFieldResolver.reference_resolver(
-                        field=field, registry=registry, executor=executor
-                    ),
-                    default_async_resolver=ListFieldResolver.reference_resolver_async(
-                        field=field, registry=registry, executor=executor
-                    ),
-                    executor=executor,
-                ),
             )
         return graphene.List(
             base_type._type,
@@ -308,16 +295,7 @@ def convert_field_to_union(field, registry=None, executor: ExecutorEnum = Execut
                 field_resolver = resolver_function
         return graphene.Field(
             _union,
-            resolver=get_field_resolver(
-                field_resolver=field_resolver,
-                default_sync_resolver=UnionFieldResolver.reference_resolver(
-                    field=field, registry=registry, executor=executor
-                ),
-                default_async_resolver=UnionFieldResolver.reference_resolver_async(
-                    field=field, registry=registry, executor=executor
-                ),
-                executor=executor,
-            ),
+            resolver=field_resolver,
             description=get_field_description(field, registry),
             required=required,
         )
@@ -332,8 +310,7 @@ def convert_field_to_dynamic(field, registry=None, executor: ExecutorEnum = Exec
 
     Returns a graphene.Dynamic so that the target type is resolved lazily
     at schema build time, allowing forward references between types that are
-    defined in any order. A reference-field resolver is attached for
-    ReferenceField to handle lazy de-referencing.
+    defined in any order.
 
     Args:
         field: The MongoEngine embedded or reference field instance.

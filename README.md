@@ -150,6 +150,85 @@ MongoEngine fields are converted to GraphQL types automatically:
 | `GenericReferenceField`                 | `Union` of registered `choices`                                    |
 | `EnumField`                             | `graphene.Enum` (auto-registered)                                  |
 
+## How It Works
+
+### Automatic Query-Driven Pre-fetching
+
+The central design principle is: **fetch exactly what the GraphQL client asked for, in as few MongoDB round-trips as
+possible.**
+
+When a connection field resolves, graphene-mongo inspects the incoming GraphQL selection set before the query runs. It
+walks every field the client requested and collects the MongoEngine reference paths that need to be resolved — including
+nested references (e.g. `article → editor → company`). These paths are passed directly to MongoEngine's
+`select_related`, which compiles them into a single MongoDB aggregation pipeline using `$lookup` stages.
+
+```graphql
+query {
+    articles {
+        edges {
+            node {
+                headline
+                editor {
+                    firstName
+                    company { name }
+                }
+            }
+        }
+    }
+}
+```
+
+The library detects that `editor` and `editor.company` are referenced fields, then issues:
+
+```python
+Article.aobjects.select_related("editor", "editor__company")
+```
+
+This becomes **one** aggregation with two `$lookup` stages — no N+1, no lazy deref, no hidden thread pools.
+
+### What `select_related` covers
+
+| Field type                  | Example               | Behaviour                                                                  |
+|-----------------------------|-----------------------|----------------------------------------------------------------------------|
+| `ReferenceField`            | `article.editor`      | Pre-fetched; nested refs also recursed (e.g. `editor__company`)            |
+| `ListField(ReferenceField)` | `parent.before_child` | List hydrated; nested refs inside each element also pre-fetched via `$map` |
+| `EmbeddedDocumentField`     | `professor.metadata`  | Always co-located in the document — no extra query                         |
+| `GenericReferenceField`     | `item.content`        | Union resolved; choices pre-fetched                                        |
+
+### Sync vs Async
+
+Both execution modes share the same pre-fetching logic. The difference is in the QuerySet manager used:
+
+- **Sync** (`MongoengineObjectType`) — uses `model.objects`, resolvers are plain functions.
+- **Async** (`AsyncMongoengineObjectType`) — uses `model.aobjects`, resolvers are `async def`. The pipeline_builder
+  compiles everything into a single `aggregate()` call.
+
+### Custom `get_queryset`
+
+You can supply a `get_queryset` callback on a connection field to apply custom filters. The library applies
+`select_related` on top of whatever queryset or filter dict you return, so pre-fetching still works:
+
+```python
+def get_queryset(model, info, **args):
+    return model.objects(published=True)  # filters only — select_related added automatically
+
+
+articles = MongoengineConnectionField(ArticleNode, get_queryset=get_queryset)
+```
+
+If you return a raw `QuerySet` or `AsyncQuerySet`, `select_related` is applied to it before execution. If you return a
+dict, it is used as filter kwargs.
+
+### Custom resolvers on ObjectTypes
+
+If you write a resolver directly on a `Query` class, you are fully in control — the framework does not add any resolvers
+on top of yours. Use `select_related` explicitly for whatever your query needs:
+
+```python
+async def resolve_reporter(self, info):
+    return await Reporter.aobjects.select_related("articles").first()
+```
+
 To learn more check out the following [examples](examples/):
 
 * [Flask MongoEngine example](examples/flask_mongoengine)

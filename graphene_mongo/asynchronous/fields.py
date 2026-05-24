@@ -414,6 +414,7 @@ class AsyncMongoengineConnectionField(MongoengineConnectionField):
                 elif isinstance(resolved, QuerySet):
                     args.update(resolved._query)
                     args_copy = self._transform_qs_args(args, args.copy())
+                    resolved = self._apply_select_related(resolved, self.model, info)
                     return await self.default_resolver(
                         root, info, required_fields, resolved=resolved, **args_copy
                     )

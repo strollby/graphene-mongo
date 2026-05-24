@@ -125,7 +125,7 @@ class AsyncMongoengineConnectionField(MongoengineConnectionField):
         if self._get_queryset:
             queryset_or_filters = self._get_queryset(model, info, **args)
             if isinstance(queryset_or_filters, mongoengine.AsyncQuerySet):
-                return queryset_or_filters
+                return self._apply_select_related(queryset_or_filters, model, info)
             elif isinstance(queryset_or_filters, mongoengine.QuerySet):
                 raise TypeError(
                     "AsyncMongoengineConnectionField only accepts AsyncQuerySet in get_queryset(...)"

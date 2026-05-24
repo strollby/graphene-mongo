@@ -6,12 +6,10 @@ from graphene.utils.str_converters import to_camel_case
 import mongoengine
 
 from . import advanced_types
-from .field_resolvers import DynamicReferenceFieldResolver
 from .utils import (
     ExecutorEnum,
     get_field_description,
     get_field_is_required,
-    get_field_resolver,
     get_document,
 )
 
@@ -346,16 +344,7 @@ def convert_field_to_dynamic(field, registry=None, executor: ExecutorEnum = Exec
                 field_resolver = resolver_function
         return graphene.Field(
             _type,
-            resolver=get_field_resolver(
-                field_resolver=field_resolver,
-                default_sync_resolver=DynamicReferenceFieldResolver.reference_resolver(
-                    field=field, registry=registry, executor=executor
-                ),
-                default_async_resolver=DynamicReferenceFieldResolver.reference_resolver_async(
-                    field=field, registry=registry, executor=executor
-                ),
-                executor=executor,
-            ),
+            resolver=field_resolver,
             description=get_field_description(field, registry),
             required=required,
         )

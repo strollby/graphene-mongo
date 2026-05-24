@@ -279,7 +279,10 @@ def get_select_related_paths(model, queried_fields, prefix=""):
             path = f"{prefix}__{snake}" if prefix else snake
             paths.append(path)
             if sub_fields and hasattr(inner, "document_type"):
-                paths += get_select_related_paths(inner.document_type, sub_fields, prefix=path)
+                # Unwrap Relay edges→node wrapper so nested fields (e.g. beforeChild→parent)
+                # are visible to the recursion even when the sub-field is a connection.
+                effective = sub_fields.get("edges", {}).get("node") or sub_fields
+                paths += get_select_related_paths(inner.document_type, effective, prefix=path)
     return paths
 
 

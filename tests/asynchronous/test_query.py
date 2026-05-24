@@ -15,7 +15,7 @@ async def test_should_query_editor(fixtures, fixtures_dirname):
         editors = graphene.List(async_types.EditorAsyncType)
 
         async def resolve_editor(self, *args, **kwargs):
-            return await models.Editor.aobjects.select_related().first()
+            return await models.Editor.aobjects.select_related("company").first()
 
         async def resolve_editors(self, *args, **kwargs):
             return await models.Editor.aobjects.all().to_list()
@@ -71,7 +71,7 @@ async def test_should_query_editor(fixtures, fixtures_dirname):
     metadata = result.data["editor"].pop("metadata")
     assert json.loads(metadata) == expected_metadata
     assert result.data == expected
-    assert count == 5  # 1 first editor + 1 company ref deref + 2 GridFS reads (files+chunks) + 1 all editors
+    assert count == 4  # 1 first editor (company pre-fetched via select_related) + 2 GridFS reads (files+chunks) + 1 all editors
 
 
 async def test_should_query_reporter(fixtures):
@@ -155,7 +155,7 @@ async def test_should_self_reference(fixtures):
         all_players = graphene.List(async_types.PlayerAsyncType)
 
         async def resolve_all_players(self, *args, **kwargs):
-            return await models.Player.aobjects.select_related("players").to_list()
+            return await models.Player.aobjects.select_related("players", "opponent").to_list()
 
     query = """
         query PlayersQuery {
@@ -194,7 +194,7 @@ async def test_should_self_reference(fixtures):
     result, count = await execute_count(schema, query)
     assert not result.errors
     assert result.data == expected
-    assert count == 2  # 1 select_related aggregate + 1 lazy deref for opponent (Magic's opponent is Michael)
+    assert count == 1  # 1 select_related aggregate (opponent + players all pre-fetched via select_related)
 
 
 async def test_should_query_with_embedded_document(fixtures):

@@ -784,7 +784,7 @@ async def test_should_lazy_reference(fixtures):
     result, count = await execute_count(schema, query)
     assert not result.errors
     assert result.data == expected
-    assert count == 3  # 1 parents aggregate + 1 before_child select_related load + 1 after_child select_related load
+    assert count == 1  # 1 aggregate (before_child, before_child.parent, after_child, after_child.parent all pre-fetched)
 
 
 async def test_should_query_with_embedded_document(fixtures):
@@ -902,7 +902,7 @@ async def test_should_get_queryset_returns_qs_filters(fixtures):
     result, count = await execute_count(schema, query)
     assert not result.errors
     assert result.data == expected
-    assert count == 2  # get_queryset returns a QuerySet directly, bypassing select_related; 1 find + 1 editor lazy deref
+    assert count == 1  # get_queryset returns a QuerySet; select_related applied to it pre-fetches editor in the same aggregate
 
 
 async def test_should_filter_mongoengine_queryset(fixtures):

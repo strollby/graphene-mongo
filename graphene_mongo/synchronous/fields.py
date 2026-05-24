@@ -97,7 +97,7 @@ class MongoengineConnectionField(BaseMongoengineConnectionField):
         if self._get_queryset:
             queryset_or_filters = self._get_queryset(model, info, **args)
             if isinstance(queryset_or_filters, mongoengine.QuerySet):
-                return queryset_or_filters
+                return self._apply_select_related(queryset_or_filters, model, info)
             args.update(queryset_or_filters)
         qs = self._apply_select_related(
             self._qs_accessor(model)(**args).only(*required_fields).order_by(self.order_by),

@@ -9,6 +9,15 @@ dependencies = [
     "mongomock>=4.1.2",
 ]
 
+[project.optional-dependencies]
+telemetry = [
+    "opentelemetry-api>=1.0.0",
+    "opentelemetry-sdk>=1.0.0",
+    "opentelemetry-exporter-otlp>=1.0.0",
+    "opentelemetry-instrumentation-flask>=0.40b0",
+    "opentelemetry-instrumentation-pymongo>=0.40b0",
+]
+
 [tool.uv.sources]
 graphene-mongo = { path = "../.." }
 mongoengine = { git = "https://github.com/strollby/mongoengine", rev = "v0.30.0-alpha.2" }

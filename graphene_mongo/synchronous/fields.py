@@ -5,7 +5,6 @@ from itertools import filterfalse
 import graphene
 import mongoengine
 import pymongo
-from bson import DBRef
 from graphene import Context
 from graphene.relay import ConnectionField
 from graphql import GraphQLResolveInfo
@@ -15,6 +14,7 @@ from promise import Promise
 from pymongo.errors import OperationFailure
 
 from ..base.fields import BaseMongoengineConnectionField
+from ..base.telemetry import field_span
 from ..base.utils import (
     ExecutorEnum,
     connection_from_iterables,
@@ -316,8 +316,7 @@ class MongoengineConnectionField(BaseMongoengineConnectionField):
         Calls the supplied *resolver* first. Depending on the return value:
 
         - None → falls through to default_resolver.
-        - list (non-empty, non-DBRef) → returned as-is.
-        - list of DBRef → re-queries via default_resolver.
+        - list (embedded documents from attribute resolver) → returned as-is.
         - QuerySet → its _query dict is merged into args and forwarded to
           default_resolver as resolved.
         - Promise → unwrapped and its value is returned.
@@ -379,12 +378,7 @@ class MongoengineConnectionField(BaseMongoengineConnectionField):
 
             if resolved is not None:
                 if isinstance(resolved, list):
-                    if resolved == list():
-                        return resolved
-                    elif not isinstance(resolved[0], DBRef):
-                        return resolved
-                    else:
-                        return self.default_resolver(root, info, required_fields, **args_copy)
+                    return resolved
                 elif isinstance(resolved, QuerySet):
                     args.update(resolved._query)
                     args_copy = self._transform_qs_args(args, args.copy())
@@ -395,7 +389,12 @@ class MongoengineConnectionField(BaseMongoengineConnectionField):
                 elif isinstance(resolved, Promise):
                     return resolved.value
                 else:
-                    return resolved
+                    raise TypeError(
+                        f"Resolver for connection field '{self.name}' returned "
+                        f"{type(resolved).__name__!r}, which is not supported. "
+                        "Return a QuerySet (with select_related applied for any "
+                        "referenced fields the client queried) or a list."
+                    )
 
         return self.default_resolver(root, info, required_fields, **args)
 
@@ -424,17 +423,19 @@ class MongoengineConnectionField(BaseMongoengineConnectionField):
                         setattr(root, key, from_global_id(value)[1])
                     except Exception as error:
                         logging.debug("Exception Occurred: ", exc_info=error)
-        iterable = resolver(root, info, **args)
 
-        if isinstance(connection_type, graphene.NonNull):
-            connection_type = connection_type.of_type
+        with field_span(info, args):
+            iterable = resolver(root, info, **args)
 
-        on_resolve = partial(cls.resolve_connection, connection_type, args)
+            if isinstance(connection_type, graphene.NonNull):
+                connection_type = connection_type.of_type
 
-        if Promise.is_thenable(iterable):
-            return Promise.resolve(iterable).then(on_resolve)
+            on_resolve = partial(cls.resolve_connection, connection_type, args)
 
-        return on_resolve(iterable)
+            if Promise.is_thenable(iterable):
+                return Promise.resolve(iterable).then(on_resolve)
+
+            return on_resolve(iterable)
 
     def wrap_resolve(self, parent_resolver):
         """Wrap the field's resolver to go through chained_resolver.

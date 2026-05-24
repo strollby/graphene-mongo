@@ -2,7 +2,12 @@ import graphene
 
 from .. import types
 from ..models import Article, Child, Reporter
-from graphene_mongo.base.utils import get_model_fields, get_query_fields, is_valid_mongoengine_model
+from graphene_mongo.base.utils import (
+    get_model_fields,
+    get_query_fields,
+    get_select_related_paths,
+    is_valid_mongoengine_model,
+)
 
 
 def test_get_model_fields_no_duplication():
@@ -102,3 +107,40 @@ def test_get_query_fields():
             "qux": {},
         },
     }
+
+
+def test_get_select_related_paths_top_level():
+    """Returns a path for each top-level reference field that was queried."""
+    queried = {"editor": {"firstName": {}}, "headline": {}}
+    paths = get_select_related_paths(Article, queried)
+    assert paths == ["editor"]
+
+
+def test_get_select_related_paths_nested():
+    """Recursively returns nested reference paths using __ notation."""
+    # Editor.company is a ReferenceField(Publisher)
+    queried = {"editor": {"firstName": {}, "company": {"name": {}}}}
+    paths = get_select_related_paths(Article, queried)
+    assert "editor" in paths
+    assert "editor__company" in paths
+
+
+def test_get_select_related_paths_no_refs():
+    """Returns an empty list when no reference fields are queried."""
+    queried = {"headline": {}, "pubDate": {}}
+    paths = get_select_related_paths(Article, queried)
+    assert paths == []
+
+
+def test_get_select_related_paths_unknown_field_ignored():
+    """Unknown GraphQL fields (not in model._fields) are silently skipped."""
+    queried = {"nonExistentField": {"sub": {}}, "headline": {}}
+    paths = get_select_related_paths(Article, queried)
+    assert paths == []
+
+
+def test_get_select_related_paths_reporter_articles():
+    """ListField(ReferenceField) is also included — articles is a list of Article refs."""
+    queried = {"articles": {"headline": {}}}
+    paths = get_select_related_paths(Reporter, queried)
+    assert "articles" in paths

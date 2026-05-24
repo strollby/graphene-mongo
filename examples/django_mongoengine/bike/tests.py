@@ -3,7 +3,6 @@ from django.urls import reverse
 from django.test import RequestFactory
 from graphene.test import Client
 from .schema import schema
-from .fixtures import fixtures_data
 
 
 def test_bikes_first_item_query(fixtures_data):

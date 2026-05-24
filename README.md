@@ -220,15 +220,134 @@ If you return a `QuerySet` or `AsyncQuerySet`, `select_related` is applied to it
 preserved and the referenced fields the client asked for are pre-fetched on top, all in one aggregation. If you return
 a dict, it is used as filter kwargs and the same pre-fetching applies.
 
-### Custom resolvers on ObjectTypes
+### `Node.Field()` and `get_node`
 
-If you write a resolver directly on a `Query` class, you are fully in control — the framework does not add any resolvers
-on top of yours. Use `select_related` explicitly for whatever your query needs:
+The default `get_node` on both `MongoengineObjectType` and `AsyncMongoengineObjectType` already applies
+`select_related` automatically — it inspects the GraphQL selection set and pre-fetches only the referenced
+fields the client asked for, in a single aggregation.
+
+If you override `get_node` for custom filtering or access control, you must replicate this yourself or
+referenced fields will be unhydrated:
 
 ```python
-async def resolve_reporter(self, info):
-    return await Reporter.aobjects.select_related("articles").first()
+from graphene_mongo import get_query_fields, get_select_related_paths
+
+
+class ReporterNode(AsyncMongoengineObjectType):
+    class Meta:
+        model = Reporter
+        interfaces = (Node,)
+
+    @classmethod
+    async def get_node(cls, info, id):
+        # ⚠ Always derive and apply select_related when overriding get_node
+        queried = get_query_fields(info)
+        paths = get_select_related_paths(cls._meta.model, queried)
+        qs = cls._meta.model.aobjects.filter(pk=id)
+        if paths:
+            qs = qs.select_related(*paths)
+        return await qs.first()
 ```
+
+Omitting `select_related` here will cause referenced fields to be unhydrated — they will resolve to `None`
+or raise an error depending on whether async lazy dereferencing is supported.
+
+### Custom resolvers on ObjectTypes
+
+If you write a resolver directly on a `Query` class for a `graphene.Field` (single document), you are fully
+in control — return the document directly. Hard-coding `select_related` paths works but over-fetches when the
+client doesn't request those fields and silently breaks when new reference fields are added to the model.
+Use `get_query_fields` + `get_select_related_paths` instead so pre-fetching adapts automatically:
+
+```python
+from graphene_mongo import get_query_fields, get_select_related_paths
+
+
+# ✗ hard-coded — over-fetches, breaks silently when model changes
+async def resolve_reporter(self, info):
+    return await Reporter.aobjects.select_related("articles", "company").first()
+
+
+# ✓ query-driven — fetches only what the client asked for
+async def resolve_reporter(self, info):
+    queried = get_query_fields(info)
+    paths = get_select_related_paths(Reporter, queried)
+    return await Reporter.aobjects.select_related(*paths).first()
+```
+
+### Pre-fetching in `graphene.List` resolvers
+
+Connection fields apply `select_related` automatically. If you use `graphene.List` or write a single-document
+resolver outside the connection pipeline, you are responsible for calling `select_related` yourself.
+Two utilities are exported to help:
+
+```python
+from graphene_mongo import get_query_fields, get_select_related_paths
+
+# Derive the paths the client actually queried
+queried = get_query_fields(info)  # {"editor": {"firstName": {}}, ...}
+paths = get_select_related_paths(Reporter, queried)  # ["editor", "editor__company"]
+
+# Apply only what the client asked for
+qs = Reporter.aobjects.filter(active=True).select_related(*paths)
+```
+
+`get_query_fields` returns the nested selection-set dict from the GraphQL AST.
+`get_select_related_paths` walks that dict against the MongoEngine model and returns `__`-separated paths
+suitable for `QuerySet.select_related`.
+
+## OpenTelemetry Tracing
+
+graphene-mongo has built-in OpenTelemetry support. Install the optional extra to activate it:
+
+```sh
+pip install graphene-mongo[telemetry]
+```
+
+When `opentelemetry-api` is installed, the library emits spans automatically — no code changes required
+in your resolvers or schema. When it is not installed, the library runs with zero overhead (a single
+boolean check per resolution).
+
+### Span hierarchy
+
+```
+POST /graphql                      ← framework HTTP span (FastAPI / Flask / Falcon / Django)
+  └─ graphql articles              ← graphene-mongo  (connection field resolution)
+       └─ mongodb.aggregate        ← opentelemetry-instrumentation-pymongo (automatic)
+  └─ graphql node ReporterType     ← graphene-mongo  (Node.Field / get_node lookup)
+       └─ mongodb.aggregate
+```
+
+### Attributes set on each span
+
+| Attribute                   | Value                                           |
+|-----------------------------|-------------------------------------------------|
+| `graphql.field.name`        | The field name being resolved                   |
+| `graphql.field.parent_type` | The parent GraphQL type name                    |
+| `graphql.operation.type`    | `query`, `mutation`, or `subscription`          |
+| `graphql.operation.name`    | The named operation (if provided by the client) |
+| `graphql.pagination.first`  | Value of `first` argument (connection fields)   |
+| `graphql.pagination.last`   | Value of `last` argument (connection fields)    |
+| `graphql.node.id`           | The Relay global ID (node lookups only)         |
+
+Spans are marked `ERROR` and the exception is recorded (with full stacktrace) if an unhandled exception
+propagates out of the resolver. MongoDB-level spans are produced automatically by
+`opentelemetry-instrumentation-pymongo` and appear as children.
+
+### Wiring up a backend
+
+Each framework example in this repo includes a ready-to-use `telemetry.py` with
+`setup_telemetry()` that creates a `TracerProvider`, attaches a `BatchSpanProcessor` with an
+OTLP exporter, instruments pymongo, and instruments the framework. Call it once at app startup
+and set `OTEL_EXPORTER_OTLP_ENDPOINT` to point at your collector (Jaeger, Datadog Agent,
+Grafana Tempo, etc.).
+
+Full wiring instructions and sample span output for each framework:
+
+- [FastAPI example](examples/fastapi_mongoengine/README.md)
+- [Flask example](examples/flask_mongoengine/README.md)
+- [Falcon example](examples/falcon_mongoengine/README.md)
+- [Django example](examples/django_mongoengine/README.md)
 
 To learn more check out the following [examples](examples/):
 

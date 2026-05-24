@@ -1,87 +1,96 @@
+# Flask + MongoEngine Example
 
-Example Flask+MongoEngine Project
-================================
+GraphQL API for an HR domain — `Department`, `Employee`, `Role`, and `Task` documents —
+built with Flask, graphene-mongo sync types, and Relay cursor pagination.
 
-This example project demos integration between Graphene, Flask and MongoEngine.
-The project contains three models, which are `Department`, `Employee` and `Role`.
-
-Getting started
----------------
-
-First you'll need to get the source of the project. Do this by cloning the
-whole Graphene repository:
+## Getting started
 
 ```bash
-# Get the example project code
-git clone git@github.com:abawchen/graphene-mongo.git
+git clone https://github.com/graphql-python/graphene-mongo.git
 cd graphene-mongo/examples/flask_mongoengine
+uv sync
 ```
 
-It is good idea (but not required) to create a virtual environment
-for this project. We'll do this using
-[virtualenv](http://docs.python-guide.org/en/latest/dev/virtualenvs/)
-to keep things simple,
-but you may also find something like
-[virtualenvwrapper](https://virtualenvwrapper.readthedocs.org/en/latest/)
-to be useful:
+## Run
 
 ```bash
-# Create a virtualenv in which we can install the dependencies
-virtualenv env
-source env/bin/activate
+uv run python app.py
 ```
 
-Now we can install our dependencies:
+Open the playground at [http://localhost:5000/graphql](http://localhost:5000/graphql).
 
-```bash
-pip install -r requirements.txt
-```
+## Sample queries
 
-Now the following command will setup the database, and start the server:
-
-```bash
-python app.py
-```
-
-
-Now head on over to
-[http://127.0.0.1:5000/graphql](http://127.0.0.1:5000/graphql)
-and run some queries!
-
-Sample query:
-```
-{
-  allEmployees {
-    edges {
-      node {
-        id,
-        name,
-        department {
-          id,
-          name
-        },
-        roles {
-          edges {
+```graphql
+# List all employees with their department and roles
+query {
+    allEmployees {
+        edges {
             node {
-              id,
-              name
+                id
+                name
+                department { id name }
+                roles {
+                    edges { node { id name } }
+                }
+                tasks {
+                    edges { node { name deadline } }
+                }
             }
-          }
-        },
-        leader {
-          id,
-          name
         }
-        tasks {
-          edges {
-            node {
-              name,
-              deadline
-            }
-          }
-        }
-      }
     }
-  }
+}
+
+# Filter employees by department name
+query {
+    allEmployees(department: "Engineering") {
+        edges {
+            node { name }
+        }
+    }
 }
 ```
+
+## Run tests
+
+```bash
+uv run pytest -v
+```
+
+## OpenTelemetry tracing
+
+`telemetry.py` is already included. Install the extras and point the app at
+your collector:
+
+```bash
+uv pip install "graphene-mongo[telemetry]" \
+               opentelemetry-instrumentation-flask \
+               opentelemetry-instrumentation-pymongo \
+               opentelemetry-exporter-otlp
+```
+
+```bash
+OTEL_SERVICE_NAME=hr-api \
+OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317 \
+uv run python app.py
+```
+
+### What you get
+
+```
+POST /graphql                              ← Flask HTTP span
+  └─ graphql allEmployees                  ← graphene-mongo field_span
+       └─ mongodb.aggregate               ← pymongo auto-instrumentation
+```
+
+Each span carries:
+
+| Attribute                   | Example value   |
+|-----------------------------|-----------------|
+| `graphql.field.name`        | `allEmployees`  |
+| `graphql.field.parent_type` | `Query`         |
+| `graphql.operation.type`    | `query`         |
+| `graphql.operation.name`    | `ListEmployees` |
+| `graphql.pagination.first`  | `10`            |
+
+Errors set `StatusCode.ERROR` and attach the full stacktrace as an `exception` event.

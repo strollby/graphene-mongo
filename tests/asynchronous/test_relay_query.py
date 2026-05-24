@@ -9,7 +9,7 @@ from graphql_relay.node.node import to_global_id
 
 from .. import models
 from . import nodes
-from graphene_mongo import AsyncMongoengineConnectionField, AsyncMongoengineObjectType
+from graphene_mongo import AsyncMongoengineConnectionField
 from .utils import execute_count
 
 
@@ -1456,3 +1456,40 @@ async def test_projection_list_generic_reference_field(fixtures):
 
     # select_related joins via $lookup in the same aggregate — no separate find
     assert len(cap.projected_fields_for("test_article")) == 0
+
+
+async def test_connection_field_resolver_returns_document_raises(fixtures):
+    """An async connection field resolver that returns a single document raises TypeError."""
+
+    class Query(graphene.ObjectType):
+        articles = AsyncMongoengineConnectionField(nodes.ArticleAsyncNode)
+
+        async def resolve_articles(self, info):
+            return await models.Article.aobjects.first()
+
+    schema = graphene.Schema(query=Query)
+    result = await schema.execute_async("{ articles { edges { node { headline } } } }")
+    assert result.errors
+    assert "Article" in str(result.errors[0])
+    assert "not supported" in str(result.errors[0])
+
+
+async def test_connection_field_resolver_returns_async_queryset(fixtures):
+    """An AsyncQuerySet returned from a custom resolver is handled correctly with select_related."""
+
+    class Query(graphene.ObjectType):
+        articles = AsyncMongoengineConnectionField(nodes.ArticleAsyncNode)
+
+        async def resolve_articles(self, info):
+            return models.Article.aobjects.filter(headline="Hello")
+
+    schema = graphene.Schema(query=Query)
+    result, count = await execute_count(
+        schema, "{ articles { edges { node { headline editor { firstName } } } } }"
+    )
+    assert not result.errors
+    assert result.data["articles"]["edges"][0]["node"]["headline"] == "Hello"
+    assert result.data["articles"]["edges"][0]["node"]["editor"]["firstName"] == "Penny"
+    assert count == 1  # AsyncQuerySet goes through select_related — single aggregation
+
+

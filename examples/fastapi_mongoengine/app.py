@@ -6,6 +6,7 @@ from fastapi.responses import HTMLResponse, JSONResponse
 
 from database import init_db
 from schema import schema
+from telemetry import setup_telemetry
 
 GRAPHQL_PLAYGROUND = """<!DOCTYPE html>
 <html>
@@ -36,6 +37,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="Library GraphQL API", lifespan=lifespan)
+setup_telemetry(app)
 
 
 @app.get("/graphql", response_class=HTMLResponse)

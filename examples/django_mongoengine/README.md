@@ -1,56 +1,107 @@
+# Django + MongoEngine Example
 
-Example Django+MongoEngine Project
-================================
+GraphQL API for a bike shop — `Bike` and `Shop` documents — built with
+Django, graphene-django, graphene-mongo sync types, and Relay cursor pagination.
 
-This example project demos integration between Graphene, Django and MongoEngine.
-
-Getting started
----------------
-
-First you'll need to get the source of the project. Do this by cloning the
-whole Graphene repository:
+## Getting started
 
 ```bash
-# Get the example project code
-git clone git@github.com:abawchen/graphene-mongo.git
+git clone https://github.com/graphql-python/graphene-mongo.git
 cd graphene-mongo/examples/django_mongoengine
+uv sync
 ```
 
-Create a virtual environment.
+## Run
 
 ```bash
-# Create a virtualenv in which we can install the dependencies
-virtualenv env
-source env/bin/activate
+uv run python manage.py migrate
+uv run python manage.py runserver
 ```
 
-Now we can install our dependencies:
+Open the playground at [http://localhost:8000/graphql](http://localhost:8000/graphql).
+
+## Sample queries
+
+```graphql
+# List all bikes
+query {
+  bikes {
+    edges {
+      node {
+        id
+        name
+        year
+        brand
+        speed
+      }
+    }
+  }
+}
+
+# Create a bike
+mutation {
+  createBike(name: "Trail Blazer", year: 2024, brand: "Trek", speed: 21) {
+    bike { id name year brand }
+  }
+}
+
+# Update a bike
+mutation {
+  updateBike(id: "<relay-id>", speed: 24) {
+    bike { id name speed }
+  }
+}
+
+# Delete a bike
+mutation {
+  deleteBike(id: "<relay-id>") {
+    ok
+  }
+}
+```
+
+## Run tests
 
 ```bash
-pip install -r requirements.txt
+uv run pytest -v
 ```
 
-Run the following command:
+## OpenTelemetry tracing
 
-```python
-python manage.py migrate
+`telemetry.py` is already included and called from `BikeConfig.ready()` in `bike/apps.py`.
+Install the extras and point the app at your collector:
+
+```bash
+uv pip install "graphene-mongo[telemetry]" \
+               opentelemetry-instrumentation-django \
+               opentelemetry-instrumentation-pymongo \
+               opentelemetry-exporter-otlp
 ```
 
-Setup a mongodb connection and create a database.
-See the mongoengine connection details in the *settings.py* file
-
-Start the server:
-
-```python
-python manage.py runserver
+```bash
+OTEL_SERVICE_NAME=bike-shop-api \
+OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317 \
+uv run python manage.py runserver
 ```
 
-Now head on over to
-[http://127.0.0.1:8000/graphql](http://127.0.0.1:8000/graphql)
-and run some queries!
+### What you get
 
-For tests run:
-
-```python
-pytest -v
 ```
+GET /graphql                           ← Django HTTP span
+  └─ graphql bikes                     ← graphene-mongo field_span
+       └─ mongodb.aggregate            ← pymongo auto-instrumentation
+  └─ graphql node BikeType             ← graphene-mongo node_span
+       └─ mongodb.aggregate
+```
+
+Each span carries:
+
+| Attribute | Example value |
+|---|---|
+| `graphql.field.name` | `bikes` |
+| `graphql.field.parent_type` | `Query` |
+| `graphql.operation.type` | `query` |
+| `graphql.operation.name` | `ListBikes` |
+| `graphql.node.id` | `QmlrZVR5cGU6NjY...` |
+
+Errors set `StatusCode.ERROR` and attach the full stacktrace as an `exception` event.

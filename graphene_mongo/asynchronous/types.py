@@ -5,6 +5,7 @@ from graphene.utils.str_converters import to_snake_case
 from .fields import AsyncMongoengineConnectionField
 from ..base.registry import get_global_async_registry, get_inputs_async_registry
 from ..base.types import create_graphene_generic_class as _create
+from ..base.telemetry import node_span
 from ..base.utils import ExecutorEnum, get_query_fields, get_select_related_paths
 
 
@@ -42,22 +43,23 @@ def create_graphene_generic_class_async(object_type, option_type):
     # noinspection PyDecorator
     @classmethod
     async def get_node(cls, info, id):
-        required_fields = list()
-        for field in cls._meta.required_fields:
-            if field in cls._meta.model._fields_ordered:
-                required_fields.append(field)
-        queried_fields = get_query_fields(info)
-        if cls._meta.name in queried_fields:
-            queried_fields = queried_fields[cls._meta.name]
-        for field in queried_fields:
-            if to_snake_case(field) in cls._meta.model._fields_ordered:
-                required_fields.append(to_snake_case(field))
-        required_fields = list(set(required_fields))
-        related = get_select_related_paths(cls._meta.model, queried_fields)
-        qs = cls._meta.model.aobjects.only(*required_fields)
-        if related:
-            qs = qs.select_related(*related)
-        return await qs.get(pk=id)
+        with node_span(info, cls._meta.name, id):
+            required_fields = list()
+            for field in cls._meta.required_fields:
+                if field in cls._meta.model._fields_ordered:
+                    required_fields.append(field)
+            queried_fields = get_query_fields(info)
+            if cls._meta.name in queried_fields:
+                queried_fields = queried_fields[cls._meta.name]
+            for field in queried_fields:
+                if to_snake_case(field) in cls._meta.model._fields_ordered:
+                    required_fields.append(to_snake_case(field))
+            required_fields = list(set(required_fields))
+            related = get_select_related_paths(cls._meta.model, queried_fields)
+            qs = cls._meta.model.aobjects.only(*required_fields)
+            if related:
+                qs = qs.select_related(*related)
+            return await qs.get(pk=id)
 
     GenericType.get_node = get_node
     return GenericType, Options

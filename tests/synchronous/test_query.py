@@ -3,7 +3,6 @@ import json
 import os
 
 import graphene
-import pytest
 
 from .. import models
 from .. import types

@@ -3,7 +3,6 @@ from itertools import filterfalse
 from typing import Coroutine
 
 import graphene
-from bson import DBRef
 from graphene import Context
 from graphene.relay import ConnectionField
 from graphql import GraphQLResolveInfo
@@ -15,6 +14,7 @@ from pymongo.errors import OperationFailure
 
 from ..synchronous.fields import MongoengineConnectionField
 from ..base.registry import get_global_async_registry
+from ..base.telemetry import field_span
 from ..base.utils import (
     ExecutorEnum,
     connection_from_iterables,
@@ -403,15 +403,8 @@ class AsyncMongoengineConnectionField(MongoengineConnectionField):
                 resolved = await resolved
             if resolved is not None:
                 if isinstance(resolved, list):
-                    if resolved == list():
-                        return resolved
-                    elif not isinstance(resolved[0], DBRef):
-                        return resolved
-                    else:
-                        return await self.default_resolver(
-                            root, info, required_fields, **args_copy
-                        )
-                elif isinstance(resolved, QuerySet):
+                    return resolved
+                elif isinstance(resolved, (QuerySet, AsyncQuerySet)):
                     args.update(resolved._query)
                     args_copy = self._transform_qs_args(args, args.copy())
                     resolved = self._apply_select_related(resolved, self.model, info)
@@ -421,7 +414,12 @@ class AsyncMongoengineConnectionField(MongoengineConnectionField):
                 elif isinstance(resolved, Promise):
                     return resolved.value
                 else:
-                    return await resolved
+                    raise TypeError(
+                        f"Resolver for connection field '{self.name}' returned "
+                        f"{type(resolved).__name__!r}, which is not supported. "
+                        "Return an AsyncQuerySet (with select_related applied for any "
+                        "referenced fields the client queried) or a list."
+                    )
 
         return await self.default_resolver(root, info, required_fields, **args)
 
@@ -450,11 +448,12 @@ class AsyncMongoengineConnectionField(MongoengineConnectionField):
                     except Exception:
                         pass
 
-        iterable = await resolver(root=root, info=info, **args)
+        with field_span(info, args):
+            iterable = await resolver(root=root, info=info, **args)
 
-        if isinstance(connection_type, graphene.NonNull):
-            connection_type = connection_type.of_type
-        on_resolve = partial(cls.resolve_connection, connection_type, args)
-        if Promise.is_thenable(iterable):
-            iterable = Promise.resolve(iterable).then(on_resolve).value
-        return on_resolve(iterable)
+            if isinstance(connection_type, graphene.NonNull):
+                connection_type = connection_type.of_type
+            on_resolve = partial(cls.resolve_connection, connection_type, args)
+            if Promise.is_thenable(iterable):
+                iterable = Promise.resolve(iterable).then(on_resolve).value
+            return on_resolve(iterable)

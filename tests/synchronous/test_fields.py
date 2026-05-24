@@ -1,8 +1,5 @@
-import pytest
-from mongoengine.context_managers import query_counter
 
 from . import nodes
-from graphene_mongo import AsyncMongoengineConnectionField
 from graphene_mongo.synchronous.fields import MongoengineConnectionField
 
 

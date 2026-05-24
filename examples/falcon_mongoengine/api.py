@@ -1,4 +1,3 @@
-import falcon
 from schema import schema
 
 

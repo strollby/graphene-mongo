@@ -3,7 +3,6 @@ import json
 import os
 
 import graphene
-import pytest
 from graphene.relay import Node
 from graphql_relay.connection.array_connection import offset_to_cursor
 from graphql_relay.node.node import to_global_id
@@ -11,7 +10,6 @@ from graphql_relay.node.node import to_global_id
 from .. import models
 from . import nodes
 from graphene_mongo.synchronous.fields import MongoengineConnectionField
-from graphene_mongo.synchronous.types import MongoengineObjectType
 from .utils import execute_count
 
 
@@ -1460,3 +1458,21 @@ def test_projection_list_generic_reference_field(fixtures):
 
     # select_related joins via $lookup in the same aggregate — no separate find
     assert len(cap.projected_fields_for("test_article")) == 0
+
+
+def test_connection_field_resolver_returns_document_raises(fixtures):
+    """A connection field resolver that returns a single document raises TypeError."""
+
+    class Query(graphene.ObjectType):
+        articles = MongoengineConnectionField(nodes.ArticleNode)
+
+        def resolve_articles(self, info):
+            return models.Article.objects.first()
+
+    schema = graphene.Schema(query=Query)
+    result = schema.execute("{ articles { edges { node { headline } } } }")
+    assert result.errors
+    assert "Article" in str(result.errors[0])
+    assert "not supported" in str(result.errors[0])
+
+

@@ -216,8 +216,9 @@ def get_queryset(model, info, **args):
 articles = MongoengineConnectionField(ArticleNode, get_queryset=get_queryset)
 ```
 
-If you return a raw `QuerySet` or `AsyncQuerySet`, `select_related` is applied to it before execution. If you return a
-dict, it is used as filter kwargs.
+If you return a `QuerySet` or `AsyncQuerySet`, `select_related` is applied to it automatically — your filters are
+preserved and the referenced fields the client asked for are pre-fetched on top, all in one aggregation. If you return
+a dict, it is used as filter kwargs and the same pre-fetching applies.
 
 ### Custom resolvers on ObjectTypes
 

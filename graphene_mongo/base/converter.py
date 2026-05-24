@@ -230,7 +230,7 @@ def convert_field_to_list(field, registry=None, executor: ExecutorEnum = Executo
     # Non-relationship field
     relations = (mongoengine.ReferenceField, mongoengine.EmbeddedDocumentField)
     if not isinstance(base_type, (graphene.List, graphene.NonNull)) and not isinstance(
-        field.field, relations
+            field.field, relations
     ):
         base_type = type(base_type)
 

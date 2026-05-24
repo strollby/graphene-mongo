@@ -38,7 +38,7 @@ jobs:
           mongodb-version: ${{ matrix.mongodb-version }}
       - name: Run tests
         run: |
-          uv run tox -e py$(echo "${{ matrix.python-version }}" | tr -d .)
+          uv run --with tox --with tox-uv tox -e py$(echo "${{ matrix.python-version }}" | tr -d .)
 
   build:
     runs-on: ubuntu-latest

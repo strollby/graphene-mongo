@@ -30,7 +30,6 @@ def setup_telemetry():
         return
 
     endpoint = os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://localhost:4317")
-    service_name = os.getenv("OTEL_SERVICE_NAME", "graphene-mongo-django")
 
     provider = TracerProvider()
     provider.add_span_processor(

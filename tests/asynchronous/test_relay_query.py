@@ -1292,7 +1292,7 @@ async def test_articles_paginated_first_with_editor(fixtures):
 # MongoDB projection tests — verify only requested + required fields are fetched
 # ---------------------------------------------------------------------------
 
-from ..mongo_capture import captured_commands
+from ..mongo_capture import captured_commands  # noqa: E402
 
 
 async def test_projection_only_queried_fields(fixtures):

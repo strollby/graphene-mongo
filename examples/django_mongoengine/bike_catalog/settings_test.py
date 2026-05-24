@@ -1,3 +1,3 @@
-from .settings import *  # flake8: noqa
+from .settings import *  # noqa: F403, F405
 
-mongoengine.connect("graphene-mongo-test", host="mongomock://localhost", alias="default")
+mongoengine.connect("graphene-mongo-test", host="mongomock://localhost", alias="default")  # noqa: F405

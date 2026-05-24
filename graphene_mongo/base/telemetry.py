@@ -13,7 +13,7 @@ Install the optional dependency to activate:
     pip install graphene-mongo[telemetry]
 """
 
-from contextlib import contextmanager, nullcontext
+from contextlib import contextmanager
 
 try:
     from opentelemetry import trace

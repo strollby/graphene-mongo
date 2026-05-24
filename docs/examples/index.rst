@@ -2,7 +2,7 @@ Examples
 ========
 
 Four complete example applications are included in the ``examples/`` directory.
-Each has its own ``pyproject.toml``, tests, and a ``telemetry.py``.
+Each has its own ``pyproject.toml`` and tests.
 
 .. toctree::
    :maxdepth: 1

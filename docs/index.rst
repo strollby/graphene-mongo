@@ -19,5 +19,4 @@ Contents:
    types/index
    prefetching/index
    relay/index
-   telemetry/index
    examples/index

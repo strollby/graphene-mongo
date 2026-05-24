@@ -14,7 +14,7 @@ from promise import Promise
 from pymongo.errors import OperationFailure
 
 from ..base.fields import BaseMongoengineConnectionField
-from ..base.telemetry import field_span
+
 from ..base.utils import (
     ExecutorEnum,
     connection_from_iterables,
@@ -424,18 +424,17 @@ class MongoengineConnectionField(BaseMongoengineConnectionField):
                     except Exception as error:
                         logging.debug("Exception Occurred: ", exc_info=error)
 
-        with field_span(info, args):
-            iterable = resolver(root, info, **args)
+        iterable = resolver(root, info, **args)
 
-            if isinstance(connection_type, graphene.NonNull):
-                connection_type = connection_type.of_type
+        if isinstance(connection_type, graphene.NonNull):
+            connection_type = connection_type.of_type
 
-            on_resolve = partial(cls.resolve_connection, connection_type, args)
+        on_resolve = partial(cls.resolve_connection, connection_type, args)
 
-            if Promise.is_thenable(iterable):
-                return Promise.resolve(iterable).then(on_resolve)
+        if Promise.is_thenable(iterable):
+            return Promise.resolve(iterable).then(on_resolve)
 
-            return on_resolve(iterable)
+        return on_resolve(iterable)
 
     def wrap_resolve(self, parent_resolver):
         """Wrap the field's resolver to go through chained_resolver.

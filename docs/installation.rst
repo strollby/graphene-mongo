@@ -13,21 +13,6 @@ Installation
 
     pip install graphene-mongo
 
-.. rubric:: Optional Extras
-
-OpenTelemetry tracing support:
-
-.. code:: bash
-
-    pip install "graphene-mongo[telemetry]"
-
-This installs ``opentelemetry-api``. You also need an SDK and exporter at runtime:
-
-.. code:: bash
-
-    pip install opentelemetry-sdk opentelemetry-exporter-otlp \
-                opentelemetry-instrumentation-pymongo
-
 .. rubric:: Development Install
 
 .. code:: bash

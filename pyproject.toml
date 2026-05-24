@@ -30,17 +30,13 @@ dependencies = [
     "mongoengine",
 ]
 
-[project.optional-dependencies]
-telemetry = [
-    "opentelemetry-api>=1.0.0",
-]
 
 [project.urls]
 Homepage = "https://github.com/graphql-python/graphene-mongo"
 Repository = "https://github.com/graphql-python/graphene-mongo"
 
 [tool.uv.sources]
-mongoengine = { git = "https://github.com/strollby/mongoengine", rev = "v0.30.0-alpha.2" }
+mongoengine = { git = "https://github.com/strollby/mongoengine", rev = "v0.30.0-alpha.3" }
 
 [dependency-groups]
 dev = [
@@ -54,8 +50,6 @@ test = [
     "pytest-cov",
     "pytest-asyncio",
     "ruff",
-    "opentelemetry-api>=1.0.0",
-    "opentelemetry-sdk>=1.0.0",
 ]
 
 [build-system]

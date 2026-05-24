@@ -1,10 +1,8 @@
 from database import init_db
 from flask import Flask, jsonify, request
 from schema import schema
-from telemetry import setup_telemetry
 
 app = Flask(__name__)
-setup_telemetry(app)
 
 
 @app.post("/graphql")

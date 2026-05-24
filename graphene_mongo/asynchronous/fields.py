@@ -14,7 +14,7 @@ from pymongo.errors import OperationFailure
 
 from ..synchronous.fields import MongoengineConnectionField
 from ..base.registry import get_global_async_registry
-from ..base.telemetry import field_span
+
 from ..base.utils import (
     ExecutorEnum,
     connection_from_iterables,
@@ -448,12 +448,11 @@ class AsyncMongoengineConnectionField(MongoengineConnectionField):
                     except Exception:
                         pass
 
-        with field_span(info, args):
-            iterable = await resolver(root=root, info=info, **args)
+        iterable = await resolver(root=root, info=info, **args)
 
-            if isinstance(connection_type, graphene.NonNull):
-                connection_type = connection_type.of_type
-            on_resolve = partial(cls.resolve_connection, connection_type, args)
-            if Promise.is_thenable(iterable):
-                iterable = Promise.resolve(iterable).then(on_resolve).value
-            return on_resolve(iterable)
+        if isinstance(connection_type, graphene.NonNull):
+            connection_type = connection_type.of_type
+        on_resolve = partial(cls.resolve_connection, connection_type, args)
+        if Promise.is_thenable(iterable):
+            iterable = Promise.resolve(iterable).then(on_resolve).value
+        return on_resolve(iterable)

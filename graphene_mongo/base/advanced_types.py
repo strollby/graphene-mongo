@@ -1,5 +1,6 @@
 import base64
 import datetime
+import re as _re
 
 import graphene
 from graphene_federation import shareable
@@ -8,6 +9,13 @@ try:
     from datetime import UTC
 except ImportError:
     UTC = datetime.timezone.utc
+
+try:
+    from zoneinfo import ZoneInfo as _ZoneInfo
+except ImportError:
+    from backports.zoneinfo import ZoneInfo as _ZoneInfo
+
+_IXDTF_RE = _re.compile(r"^(.*)\[([^\]!]+)\]$")
 
 
 @shareable  # Support Graphene Federation v2
@@ -150,54 +158,68 @@ class MultiPolygonFieldType(_CoordinatesTypeField):
     )
 
 
-@shareable  # Support Graphene Federation v2
-class ZonedDateTimeType(graphene.ObjectType):
-    """GraphQL ObjectType for a MongoEngine AwareDateTimeField.
+class AwareDateTimeScalar(graphene.Scalar):
+    """RFC 9557 IXDTF scalar for MongoEngine AwareDateTimeField.
 
-    Stores a datetime together with its originating timezone so the frontend
-    can display the local time without losing DST or offset information.
+    Serialises to the Internet Extended Date/Time Format (IXDTF):
+        "2024-05-16T12:00:00+09:00[Asia/Tokyo]"
+         ↑ local wall-clock time    ↑ IANA timezone annotation
 
-    Fields:
-        utc (DateTime): The moment in time expressed as a UTC-normalised
-            ISO-8601 datetime string. Use this for all comparisons and sorting.
-        tz (String): IANA timezone name (e.g. "Asia/Kolkata", "America/New_York")
-            that identifies the wall-clock timezone the value was recorded in.
+    The datetime component represents local time in the annotated timezone
+    (including the correct UTC offset for DST). Clients can parse this
+    directly with the JavaScript Temporal API:
+        Temporal.ZonedDateTime.from("2024-05-16T12:00:00+09:00[Asia/Tokyo]")
+
+    Accepts as input:
+        - Full IXDTF string: "2024-06-15T14:30:00+05:30[Asia/Kolkata]"
+        - Plain RFC 3339 string with offset: "2024-06-15T09:00:00+00:00"
+        - UTC string: "2024-06-15T09:00:00Z"
     """
 
-    utc = graphene.DateTime(required=True)
-    tz = graphene.String(required=True)
+    class Meta:
+        name = "AwareDateTime"
 
-    def resolve_utc(self, info):
-        """Return the UTC datetime.
+    @staticmethod
+    def serialize(value):
+        """Serialise a stored AwareDateTimeField value to an IXDTF string."""
+        if isinstance(value, dict):
+            utc_dt = value["utc"]
+            tz_name = value["tz"]
+        else:
+            tzinfo = getattr(value, "tzinfo", None)
+            if hasattr(tzinfo, "key"):
+                tz_name = tzinfo.key
+            elif hasattr(tzinfo, "zone"):
+                tz_name = tzinfo.zone
+            else:
+                tz_name = str(tzinfo)
+            utc_dt = value
 
-        Handles both the raw MongoDB dict ({"utc": datetime, "tz": str}) and the
-        timezone-aware datetime that AwareDateTimeField.to_python returns.
-        """
-        if isinstance(self, dict):
-            return self["utc"]
-        return self.astimezone(UTC)
+        if utc_dt.tzinfo is None:
+            utc_dt = utc_dt.replace(tzinfo=UTC)
 
-    def resolve_tz(self, info):
-        """Return the IANA timezone name.
+        local_dt = utc_dt.astimezone(_ZoneInfo(tz_name))
+        return f"{local_dt.isoformat()}[{tz_name}]"
 
-        Handles both the raw MongoDB dict and the timezone-aware datetime that
-        AwareDateTimeField.to_python returns.
-        """
-        if isinstance(self, dict):
-            return self["tz"]
-        tzinfo = self.tzinfo
-        if hasattr(tzinfo, "key"):
-            return tzinfo.key
-        return str(tzinfo)
+    @staticmethod
+    def parse_value(value):
+        """Parse an IXDTF string (or plain ISO 8601) to a timezone-aware datetime."""
+        if not isinstance(value, str):
+            raise ValueError(f"AwareDateTime requires a string, got {type(value).__name__}")
+        m = _IXDTF_RE.match(value)
+        if m:
+            dt_str, tz_name = m.group(1), m.group(2)
+            dt = datetime.datetime.fromisoformat(dt_str)
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=_ZoneInfo(tz_name))
+            return dt
+        return datetime.datetime.fromisoformat(value)
 
+    @staticmethod
+    def parse_literal(ast):
+        """Parse a GraphQL string literal to a timezone-aware datetime."""
+        from graphql import StringValueNode
 
-class ZonedDateTimeInputType(graphene.InputObjectType):
-    """GraphQL InputObjectType for writing a MongoEngine AwareDateTimeField.
-
-    Fields:
-        utc (DateTime): The moment expressed as a UTC datetime. Required.
-        tz (String): IANA timezone name (e.g. "Asia/Kolkata"). Required.
-    """
-
-    utc = graphene.DateTime(required=True)
-    tz = graphene.String(required=True)
+        if isinstance(ast, StringValueNode):
+            return AwareDateTimeScalar.parse_value(ast.value)
+        return None

@@ -421,7 +421,7 @@ def test_should_query_cell_tower(fixtures):
     assert result.data == expected
     assert count == 1
 
-def test_should_query_zoned_datetime(fixtures):
+def test_should_query_aware_datetime(fixtures):
     from .nodes import EventNode
     from graphene_mongo.synchronous.fields import MongoengineConnectionField
 
@@ -429,22 +429,18 @@ def test_should_query_zoned_datetime(fixtures):
         events = MongoengineConnectionField(EventNode)
 
     schema = graphene.Schema(query=Query, auto_camelcase=True)
-    result = schema.execute(
-        "{ events { edges { node { name startTime { utc tz } } } } }"
-    )
+    result = schema.execute("{ events { edges { node { name startTime } } } }")
     assert not result.errors, result.errors
     edges = result.data["events"]["edges"]
     assert len(edges) == 2
-    names = {e["node"]["name"] for e in edges}
-    assert names == {"Kolkata Summit", "New York Meetup"}
-    for edge in edges:
-        st = edge["node"]["startTime"]
-        assert st["utc"] is not None
-        assert st["tz"] in ("Asia/Kolkata", "America/New_York")
+    by_name = {e["node"]["name"]: e["node"]["startTime"] for e in edges}
+    # IXDTF format: local wall-clock time + offset + [IANA annotation]
+    assert by_name["Kolkata Summit"] == "2024-06-15T14:30:00+05:30[Asia/Kolkata]"
+    assert by_name["New York Meetup"] == "2024-09-01T09:00:00-04:00[America/New_York]"
 
 
-def test_should_filter_zoned_datetime_by_utc(fixtures):
-    """Exact equality on AwareDateTimeField filters against the stored utc subfield."""
+def test_should_filter_aware_datetime_by_utc(fixtures):
+    """Exact equality on AwareDateTimeField using IXDTF input."""
     from .nodes import EventNode
     from graphene_mongo.synchronous.fields import MongoengineConnectionField
 
@@ -452,19 +448,19 @@ def test_should_filter_zoned_datetime_by_utc(fixtures):
         events = MongoengineConnectionField(EventNode)
 
     schema = graphene.Schema(query=Query, auto_camelcase=True)
-    # Kolkata Summit: 2024-06-15 14:30 IST = 2024-06-15 09:00:00 UTC (exact equality)
+    # Filter using local IXDTF string — Kolkata Summit is 2024-06-15 14:30 IST
     result = schema.execute(
-        '{ events(startTime: "2024-06-15T09:00:00+00:00") { edges { node { name startTime { tz } } } } }'
+        '{ events(startTime: "2024-06-15T14:30:00+05:30[Asia/Kolkata]") { edges { node { name startTime } } } }'
     )
     assert not result.errors, result.errors
     edges = result.data["events"]["edges"]
     assert len(edges) == 1
     assert edges[0]["node"]["name"] == "Kolkata Summit"
-    assert edges[0]["node"]["startTime"]["tz"] == "Asia/Kolkata"
+    assert edges[0]["node"]["startTime"] == "2024-06-15T14:30:00+05:30[Asia/Kolkata]"
 
 
-def test_should_filter_zoned_datetime_range(fixtures):
-    """filter_fields gte/lte on AwareDateTimeField compare against the utc subfield."""
+def test_should_filter_aware_datetime_range(fixtures):
+    """filter_fields gte/lte/in on AwareDateTimeField compare against the utc subfield."""
     from graphene_mongo.synchronous.types import MongoengineObjectType
     from graphene_mongo.synchronous.fields import MongoengineConnectionField
     from .. import models as m
@@ -480,8 +476,7 @@ def test_should_filter_zoned_datetime_range(fixtures):
 
     schema = graphene.Schema(query=Query, auto_camelcase=True)
 
-    # Both events: Kolkata=2024-06-15T09:00Z, NY=2024-09-01T13:00Z
-    # gte 2024-07-01 → only NY Meetup (auto_camelcase: start_time__gte → startTime_Gte)
+    # gte 2024-07-01 UTC → only NY Meetup (plain UTC offset, no IANA annotation)
     result = schema.execute(
         '{ events(startTime_Gte: "2024-07-01T00:00:00+00:00") { edges { node { name } } } }'
     )
@@ -489,7 +484,7 @@ def test_should_filter_zoned_datetime_range(fixtures):
     names = [e["node"]["name"] for e in result.data["events"]["edges"]]
     assert names == ["New York Meetup"]
 
-    # lte 2024-07-01 → only Kolkata Summit
+    # lte using IXDTF → only Kolkata Summit
     result = schema.execute(
         '{ events(startTime_Lte: "2024-07-01T00:00:00+00:00") { edges { node { name } } } }'
     )
@@ -497,9 +492,9 @@ def test_should_filter_zoned_datetime_range(fixtures):
     names = [e["node"]["name"] for e in result.data["events"]["edges"]]
     assert names == ["Kolkata Summit"]
 
-    # in [kolkata-utc, ny-utc] → both events (list of datetimes)
+    # in using IXDTF strings → both events
     result = schema.execute(
-        '{ events(startTime_In: ["2024-06-15T09:00:00+00:00", "2024-09-01T13:00:00+00:00"]) { edges { node { name } } } }'
+        '{ events(startTime_In: ["2024-06-15T14:30:00+05:30[Asia/Kolkata]", "2024-09-01T09:00:00-04:00[America/New_York]"]) { edges { node { name } } } }'
     )
     assert not result.errors, result.errors
     names = {e["node"]["name"] for e in result.data["events"]["edges"]}

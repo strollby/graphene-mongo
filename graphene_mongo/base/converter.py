@@ -173,15 +173,13 @@ def convert_file_to_field(field, registry=None, executor: ExecutorEnum = Executo
 
 
 @convert_mongoengine_field.register(mongoengine.AwareDateTimeField)
-def convert_zoned_datetime_to_field(field, registry=None, executor: ExecutorEnum = ExecutorEnum.SYNC):
-    """Convert AwareDateTimeField → graphene.Field(ZonedDateTimeType).
+def convert_aware_datetime_to_field(field, registry=None, executor: ExecutorEnum = ExecutorEnum.SYNC):
+    """Convert AwareDateTimeField → AwareDateTimeScalar (RFC 9557 IXDTF).
 
-    The raw MongoDB document stores {"utc": datetime, "tz": "timezone_name"}.
-    ZonedDateTimeType exposes both subfields so clients receive the UTC instant
-    and the IANA timezone name needed to reconstruct the original wall-clock time.
+    Serialises to "2024-05-16T12:00:00+09:00[Asia/Tokyo]" — local wall-clock
+    time with the UTC offset and IANA timezone annotation per RFC 9557.
     """
-    return graphene.Field(
-        advanced_types.ZonedDateTimeType,
+    return advanced_types.AwareDateTimeScalar(
         description=get_field_description(field, registry),
         required=get_field_is_required(field, registry),
     )

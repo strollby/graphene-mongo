@@ -249,20 +249,23 @@ Relay mutations via `MongoengineCreateMutation` / `MongoengineUpdateMutation`. C
 
 ---
 
-## `ZonedDateTimeField` support
+## `AwareDateTimeField` support
 
-`ZonedDateTimeField` (mongoengine v0.30.0-alpha.6+) stores a datetime as `{"utc": datetime, "tz": "IANA/Zone"}`.
-graphene-mongo exposes it as `ZonedDateTimeType` with two subfields:
+`AwareDateTimeField` (mongoengine v0.30.0-alpha.6+) stores a datetime as `{"utc": datetime, "tz": "IANA/Zone"}`.
+graphene-mongo exposes it as the `AwareDateTime` **scalar** per [RFC 9557 (IXDTF)](https://datatracker.ietf.org/doc/html/rfc9557):
 
 ```graphql
-startTime {
-    utc   # DateTime — UTC-normalised instant, use for sorting and comparisons
-    tz    # String  — IANA timezone name (e.g. "Asia/Kolkata", "America/New_York")
-}
+# scalar — no subfields, just a string
+startTime   # "2024-06-15T14:30:00+05:30[Asia/Kolkata]"
 ```
 
-**Filtering** behaves identically to a plain `DateTime` field. Any MongoEngine operator declared in `filter_fields`
-is transparently rewritten to compare against the stored `utc` subfield:
+The string is the **local wall-clock time** in the stored timezone, with the correct UTC offset (honouring DST) and the IANA timezone annotation in brackets. JavaScript clients can parse it natively with the Temporal API:
+
+```javascript
+Temporal.ZonedDateTime.from("2024-06-15T14:30:00+05:30[Asia/Kolkata]")
+```
+
+**Filtering** is transparently rewritten to compare against the stored `utc` subfield. Inputs accept full IXDTF strings or plain RFC 3339 strings with a UTC offset:
 
 ```python
 class EventNode(MongoengineObjectType):
@@ -272,11 +275,16 @@ class EventNode(MongoengineObjectType):
 ```
 
 ```graphql
-# camelCase note: start_time__gte → startTime_Gte (double-underscore separator preserved)
-{ events(startTime_Gte: "2024-07-01T00:00:00+00:00") { edges { node { name } } } }
+# IXDTF input (recommended)
+{ events(startTime_Gte: "2024-07-01T00:00:00+05:30[Asia/Kolkata]") { edges { node { name startTime } } } }
+
+# Plain RFC 3339 also accepted
+{ events(startTime_Gte: "2024-07-01T00:00:00+00:00") { edges { node { name startTime } } } }
 ```
 
-List operators (`in`, `nin`, `all`) accept a list of `DateTime` values — each element is individually
+camelCase note: `start_time__gte` → `startTime_Gte` (double-underscore separator preserved).
+
+List operators (`in`, `nin`, `all`) accept a list of `AwareDateTime` values — each element is individually
 normalised to UTC before the query is sent.
 
 ---
@@ -304,4 +312,4 @@ normalised to UTC before the query is sent.
 | Nested input objects                        | Covered     | `ProfessorMetadataInput` nested in `ProfessorVectorInput` (`test_inputs.py`)            |
 | Geo field filtering (`__near`)              | Covered     | Arg existence + live `$near` query with 2dsphere index (`test_relay_query.py`)          |
 | `filter_fields` validation errors           | Covered     | Invalid lookup: schema builds fine, query fails at execution (`test_relay_query.py`)    |
-| `ZonedDateTimeField` (query + filter)       | Covered     | Read `utc`/`tz`, exact equality, range (`gte`/`lte`/`gt`/`lt`), list (`in`) operators  |
+| `AwareDateTimeField` (query + filter)       | Covered     | IXDTF scalar output, exact equality, range (`gte`/`lte`/`gt`/`lt`), list (`in`) operators  |

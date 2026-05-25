@@ -15,12 +15,12 @@ from graphql import GraphQLResolveInfo
 from graphql_relay import from_global_id
 
 from .advanced_types import (
+    AwareDateTimeScalar,
     FileFieldType,
     MultiPolygonFieldType,
     PointFieldInputType,
     PointFieldType,
     PolygonFieldType,
-    ZonedDateTimeType,
 )
 from .converter import MongoEngineConversionError, convert_mongoengine_field
 from .registry import get_global_registry
@@ -261,8 +261,6 @@ class BaseMongoengineConnectionField(ConnectionField):
         def get_filter_type(_type):
             if isinstance(_type, Structure):
                 return get_filter_type(_type.of_type)
-            if _type is ZonedDateTimeType:
-                return graphene.DateTime()
             return _type()
 
         return {
@@ -308,8 +306,8 @@ class BaseMongoengineConnectionField(ConnectionField):
                             filter_type = graphene.Int
                         else:
                             filter_type = PointFieldInputType
-                    elif field_type_str in ("ZonedDateTimeType", "ZonedDateTimeType!"):
-                        filter_type = graphene.DateTime
+                    elif field_type_str in ("AwareDateTime", "AwareDateTime!"):
+                        filter_type = AwareDateTimeScalar
                     else:
                         filter_type = getattr(
                             graphene,

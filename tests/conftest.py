@@ -25,6 +25,8 @@ from .models import (
     DeepL8,
     DeepL9,
     DeepL10,
+    DeepEmbedWithRef,
+    DeepNestedEmbed,
     Editor,
     EmbeddedArticle,
     Event,
@@ -210,9 +212,35 @@ def fixtures():
 
     l9 = DeepL9(name="L9", child=l10a).save()
 
-    l8 = DeepL8(name="L8", child=l9, extras=[l10b, l10c]).save()
+    l8 = DeepL8(name="L8", child=l9, extras=[l10b, l10c], generic_refs=[l9, l10b]).save()
 
-    l7 = DeepL7(name="L7", child=l8).save()
+    l7 = DeepL7(
+        name="L7",
+        child=l8,
+        embed=DeepEmbedWithRef(
+            label="embed-single",
+            ref_item=l10a,
+            generic_item=l9,
+            list_refs=[l10b, l10c],
+            nested=DeepNestedEmbed(ref_item=l10a),
+        ),
+        embeds=[
+            DeepEmbedWithRef(
+                label="embed-list-0",
+                ref_item=l10b,
+                generic_item=l10c,
+                list_refs=[l10a],
+                nested=DeepNestedEmbed(ref_item=l10b),
+            ),
+            DeepEmbedWithRef(
+                label="embed-list-1",
+                ref_item=l10c,
+                generic_item=l9,
+                list_refs=[l10a, l10b],
+                nested=DeepNestedEmbed(ref_item=l10c),
+            ),
+        ],
+    ).save()
 
     l6 = DeepL6(name="L6", child=l7, generic_item=l7).save()
 

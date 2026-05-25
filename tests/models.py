@@ -224,12 +224,37 @@ class DeepL8(mongoengine.Document):
     child = mongoengine.ReferenceField(DeepL9)
     # list of references at level 8 → level 10
     extras = mongoengine.ListField(mongoengine.ReferenceField(DeepL10))
+    # list of generic references — scenario 1
+    generic_refs = mongoengine.ListField(mongoengine.GenericReferenceField(choices=[DeepL9, DeepL10]))
+
+
+class DeepNestedEmbed(mongoengine.EmbeddedDocument):
+    """Nested EmbeddedDocument — lives inside DeepEmbedWithRef to test recursive embedded-doc path generation."""
+
+    ref_item = mongoengine.ReferenceField(DeepL10)
+
+
+class DeepEmbedWithRef(mongoengine.EmbeddedDocument):
+    """EmbeddedDocument with ReferenceField, GenericReferenceField, ListField(ReferenceField),
+    and a nested EmbeddedDocumentField for deep select_related tests."""
+
+    label = mongoengine.StringField()
+    ref_item = mongoengine.ReferenceField(DeepL10)
+    generic_item = mongoengine.GenericReferenceField(choices=[DeepL9, DeepL10])
+    # list of references inside an embedded doc — scenario 2
+    list_refs = mongoengine.ListField(mongoengine.ReferenceField(DeepL10))
+    # nested embedded doc with a reference — scenario 3
+    nested = mongoengine.EmbeddedDocumentField(DeepNestedEmbed)
 
 
 class DeepL7(mongoengine.Document):
     meta = {"collection": "test_deep_l7"}
     name = mongoengine.StringField()
     child = mongoengine.ReferenceField(DeepL8)
+    # single embedded doc with ref fields
+    embed = mongoengine.EmbeddedDocumentField(DeepEmbedWithRef)
+    # list of embedded docs with ref fields
+    embeds = mongoengine.EmbeddedDocumentListField(DeepEmbedWithRef)
 
 
 class DeepL6(mongoengine.Document):

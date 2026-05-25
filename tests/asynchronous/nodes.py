@@ -127,6 +127,22 @@ class DeepL8AsyncNode(AsyncMongoengineObjectType):
         interfaces = (Node,)
 
 
+class DeepNestedEmbedAsyncType(AsyncMongoengineObjectType):
+    """Async type for DeepNestedEmbed — registered before DeepEmbedWithRefAsyncType so the
+    EmbeddedDocumentField converter for 'nested' can resolve the inner type at class-creation time."""
+
+    class Meta:
+        model = models.DeepNestedEmbed
+
+
+class DeepEmbedWithRefAsyncType(AsyncMongoengineObjectType):
+    """Async type for DeepEmbedWithRef — registered before DeepL7AsyncNode so the
+    EmbeddedDocumentListField converter can resolve the inner type at class-creation time."""
+
+    class Meta:
+        model = models.DeepEmbedWithRef
+
+
 class DeepL7AsyncNode(AsyncMongoengineObjectType):
     class Meta:
         model = models.DeepL7

@@ -127,6 +127,22 @@ class DeepL8Node(MongoengineObjectType):
         interfaces = (Node,)
 
 
+class DeepNestedEmbedType(MongoengineObjectType):
+    """Sync type for DeepNestedEmbed — registered before DeepEmbedWithRefType so the
+    EmbeddedDocumentField converter for 'nested' can resolve the inner type at class-creation time."""
+
+    class Meta:
+        model = models.DeepNestedEmbed
+
+
+class DeepEmbedWithRefType(MongoengineObjectType):
+    """Sync type for DeepEmbedWithRef — registered before DeepL7Node so the
+    EmbeddedDocumentListField converter can resolve the inner type at class-creation time."""
+
+    class Meta:
+        model = models.DeepEmbedWithRef
+
+
 class DeepL7Node(MongoengineObjectType):
     class Meta:
         model = models.DeepL7

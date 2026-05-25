@@ -283,6 +283,13 @@ def get_select_related_paths(model, queried_fields, prefix=""):
                 # are visible to the recursion even when the sub-field is a connection.
                 effective = sub_fields.get("edges", {}).get("node") or sub_fields
                 paths += get_select_related_paths(inner.document_type, effective, prefix=path)
+        elif isinstance(inner, mongoengine.EmbeddedDocumentField):
+            # Embedded docs are stored inline — no select_related path needed for the
+            # embedded doc itself, but any ReferenceField inside it does need one.
+            # Path prefix grows (e.g. "embed") so nested refs become "embed__ref_item".
+            if sub_fields and hasattr(inner, "document_type"):
+                path = f"{prefix}__{snake}" if prefix else snake
+                paths += get_select_related_paths(inner.document_type, sub_fields, prefix=path)
     return paths
 
 

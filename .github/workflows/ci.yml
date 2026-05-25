@@ -3,8 +3,11 @@ name: CI
 on:
   pull_request:
   push:
-    branches: ["develop", "master"]
   workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 env:
   MAIN_PYTHON_VERSION: "3.14"
@@ -17,8 +20,12 @@ jobs:
       - uses: astral-sh/setup-uv@v8.1.0
         with:
           python-version: ${{ env.MAIN_PYTHON_VERSION }}
-      - name: Run ruff
-        run: uv run --with ruff ruff check .
+          enable-cache: true
+          cache-dependency-glob: "pyproject.toml"
+      - name: Install dev dependencies
+        run: uv sync --only-group dev
+      - name: Run pre-commit
+        run: uv run pre-commit run -a
 
   test:
     runs-on: ubuntu-latest
@@ -26,19 +33,23 @@ jobs:
       fail-fast: false
       matrix:
         python-version: ["3.10", "3.11", "3.12", "3.13", "3.14"]
-        mongodb-version: ["4.4", "5.0", "6.0", "7.0", "8.0" ]
+        mongodb-version: ["4.4", "5.0", "6.0", "7.0", "8.0", "8.3"]
     steps:
       - uses: actions/checkout@v6
       - uses: astral-sh/setup-uv@v8.1.0
         with:
           python-version: ${{ matrix.python-version }}
+          enable-cache: true
+          cache-dependency-glob: "pyproject.toml"
       - name: Start MongoDB ${{ matrix.mongodb-version }}
-        uses: supercharge/mongodb-github-action@1.12.0
+        uses: supercharge/mongodb-github-action@1.12.1
         with:
           mongodb-version: ${{ matrix.mongodb-version }}
+      - name: Install test dependencies
+        run: uv sync --only-group test
       - name: Run tests
         run: |
-          uv run --with tox --with tox-uv tox -e py$(echo "${{ matrix.python-version }}" | tr -d .)
+          uv run tox -e py$(echo "${{ matrix.python-version }}" | tr -d .)
 
   build:
     runs-on: ubuntu-latest
@@ -48,5 +59,7 @@ jobs:
       - uses: astral-sh/setup-uv@v8.1.0
         with:
           python-version: ${{ env.MAIN_PYTHON_VERSION }}
+          enable-cache: true
+          cache-dependency-glob: "pyproject.toml"
       - name: Build wheel
         run: uv build

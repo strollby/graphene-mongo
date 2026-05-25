@@ -193,5 +193,6 @@ async def setup() -> AsyncGenerator[None, Any]:
     """
     gridfs.enable_gridfs_integration()
 
-    mongoengine.connect(DB_NAME)
-    await mongoengine.async_connect(DB_NAME)
+    host = os.environ.get("MONGODB_URI", "mongodb://localhost:27017")
+    mongoengine.connect(DB_NAME, host=host)
+    await mongoengine.async_connect(DB_NAME, host=host)

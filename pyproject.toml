@@ -51,6 +51,8 @@ test = [
     "pytest-cov",
     "pytest-asyncio",
     "ruff",
+    "tox>=4.0",
+    "tox-uv",
 ]
 
 [build-system]

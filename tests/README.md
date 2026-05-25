@@ -251,7 +251,7 @@ Relay mutations via `MongoengineCreateMutation` / `MongoengineUpdateMutation`. C
 
 ## `ZonedDateTimeField` support
 
-`ZonedDateTimeField` (mongoengine v0.30.0-alpha.5+) stores a datetime as `{"utc": datetime, "tz": "IANA/Zone"}`.
+`ZonedDateTimeField` (mongoengine v0.30.0-alpha.6+) stores a datetime as `{"utc": datetime, "tz": "IANA/Zone"}`.
 graphene-mongo exposes it as `ZonedDateTimeType` with two subfields:
 
 ```graphql

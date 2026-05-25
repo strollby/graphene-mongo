@@ -41,7 +41,7 @@ _UTC = _datetime.timezone.utc
 def _to_utc(value):
     """Normalise a datetime (or list of datetimes) to UTC.
 
-    Used by _hydrate_args to rewrite ZonedDateTimeField filter values before
+    Used by _hydrate_args to rewrite AwareDateTimeField filter values before
     they are passed to MongoEngine. Handles the in/nin/all list case as well as
     single values, and assumes UTC when the value has no tzinfo.
     """
@@ -450,10 +450,10 @@ class BaseMongoengineConnectionField(ConnectionField):
             elif (
                 arg_name in self.model._fields_ordered
                 and isinstance(
-                    getattr(self.model, arg_name), mongoengine.ZonedDateTimeField
+                    getattr(self.model, arg_name), mongoengine.AwareDateTimeField
                 )
             ):
-                # ZonedDateTimeField stores {"utc": datetime, "tz": str}.
+                # AwareDateTimeField stores {"utc": datetime, "tz": str}.
                 # Rewrite bare field filter to compare against the utc subfield.
                 hydrated[arg_name + "__utc"] = _to_utc(args.pop(arg_name))
             elif "__" in arg_name:
@@ -463,7 +463,7 @@ class BaseMongoengineConnectionField(ConnectionField):
                 if (
                     field_name in self.model._fields_ordered
                     and isinstance(
-                        getattr(self.model, field_name), mongoengine.ZonedDateTimeField
+                        getattr(self.model, field_name), mongoengine.AwareDateTimeField
                     )
                 ):
                     value = args.pop(arg_name)

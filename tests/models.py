@@ -279,8 +279,8 @@ class DeepL1(mongoengine.Document):
 
 
 class Event(mongoengine.Document):
-    """Test model for ZonedDateTimeField — stores a name and a timezone-aware start time."""
+    """Test model for AwareDateTimeField — stores a name and a timezone-aware start time."""
 
     meta = {"collection": "test_event"}
     name = mongoengine.StringField(required=True)
-    start_time = mongoengine.ZonedDateTimeField()
+    start_time = mongoengine.AwareDateTimeField()

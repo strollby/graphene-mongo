@@ -251,7 +251,7 @@ def fixtures():
 
     School(classes=[sc1, sc2]).save()
 
-    # ZonedDateTimeField model
+    # AwareDateTimeField model
     Event.drop_collection()
     from zoneinfo import ZoneInfo
     import datetime as _dt

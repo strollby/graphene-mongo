@@ -459,7 +459,7 @@ async def test_should_filter_zoned_datetime_by_utc(fixtures):
 
 
 async def test_should_filter_zoned_datetime_range(fixtures):
-    """filter_fields gte/lte/gt/lt/in on ZonedDateTimeField compare against the utc subfield."""
+    """filter_fields gte/lte/gt/lt/in on AwareDateTimeField compare against the utc subfield."""
     from graphene_mongo.asynchronous.types import AsyncMongoengineObjectType
     from graphene_mongo import AsyncMongoengineConnectionField
     from .. import models as m

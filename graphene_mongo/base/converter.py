@@ -172,9 +172,9 @@ def convert_file_to_field(field, registry=None, executor: ExecutorEnum = Executo
     )
 
 
-@convert_mongoengine_field.register(mongoengine.ZonedDateTimeField)
+@convert_mongoengine_field.register(mongoengine.AwareDateTimeField)
 def convert_zoned_datetime_to_field(field, registry=None, executor: ExecutorEnum = ExecutorEnum.SYNC):
-    """Convert ZonedDateTimeField → graphene.Field(ZonedDateTimeType).
+    """Convert AwareDateTimeField → graphene.Field(ZonedDateTimeType).
 
     The raw MongoDB document stores {"utc": datetime, "tz": "timezone_name"}.
     ZonedDateTimeType exposes both subfields so clients receive the UTC instant

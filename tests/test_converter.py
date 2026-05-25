@@ -108,7 +108,7 @@ def test_should_file_convert_field():
 
 
 def test_should_zoned_datetime_convert_field():
-    graphene_type = convert_mongoengine_field(mongoengine.ZonedDateTimeField())
+    graphene_type = convert_mongoengine_field(mongoengine.AwareDateTimeField())
     assert isinstance(graphene_type, graphene.Field)
     assert graphene_type.type == advanced_types.ZonedDateTimeType
     assert isinstance(graphene_type.type.utc, graphene.DateTime)

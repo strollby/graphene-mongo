@@ -152,7 +152,7 @@ class MultiPolygonFieldType(_CoordinatesTypeField):
 
 @shareable  # Support Graphene Federation v2
 class ZonedDateTimeType(graphene.ObjectType):
-    """GraphQL ObjectType for a MongoEngine ZonedDateTimeField.
+    """GraphQL ObjectType for a MongoEngine AwareDateTimeField.
 
     Stores a datetime together with its originating timezone so the frontend
     can display the local time without losing DST or offset information.
@@ -171,7 +171,7 @@ class ZonedDateTimeType(graphene.ObjectType):
         """Return the UTC datetime.
 
         Handles both the raw MongoDB dict ({"utc": datetime, "tz": str}) and the
-        timezone-aware datetime that ZonedDateTimeField.to_python returns.
+        timezone-aware datetime that AwareDateTimeField.to_python returns.
         """
         if isinstance(self, dict):
             return self["utc"]
@@ -181,7 +181,7 @@ class ZonedDateTimeType(graphene.ObjectType):
         """Return the IANA timezone name.
 
         Handles both the raw MongoDB dict and the timezone-aware datetime that
-        ZonedDateTimeField.to_python returns.
+        AwareDateTimeField.to_python returns.
         """
         if isinstance(self, dict):
             return self["tz"]
@@ -192,7 +192,7 @@ class ZonedDateTimeType(graphene.ObjectType):
 
 
 class ZonedDateTimeInputType(graphene.InputObjectType):
-    """GraphQL InputObjectType for writing a MongoEngine ZonedDateTimeField.
+    """GraphQL InputObjectType for writing a MongoEngine AwareDateTimeField.
 
     Fields:
         utc (DateTime): The moment expressed as a UTC datetime. Required.

@@ -444,7 +444,7 @@ def test_should_query_zoned_datetime(fixtures):
 
 
 def test_should_filter_zoned_datetime_by_utc(fixtures):
-    """Exact equality on ZonedDateTimeField filters against the stored utc subfield."""
+    """Exact equality on AwareDateTimeField filters against the stored utc subfield."""
     from .nodes import EventNode
     from graphene_mongo.synchronous.fields import MongoengineConnectionField
 
@@ -464,7 +464,7 @@ def test_should_filter_zoned_datetime_by_utc(fixtures):
 
 
 def test_should_filter_zoned_datetime_range(fixtures):
-    """filter_fields gte/lte on ZonedDateTimeField compare against the utc subfield."""
+    """filter_fields gte/lte on AwareDateTimeField compare against the utc subfield."""
     from graphene_mongo.synchronous.types import MongoengineObjectType
     from graphene_mongo.synchronous.fields import MongoengineConnectionField
     from .. import models as m

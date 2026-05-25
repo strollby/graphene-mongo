@@ -36,7 +36,7 @@ Homepage = "https://github.com/graphql-python/graphene-mongo"
 Repository = "https://github.com/graphql-python/graphene-mongo"
 
 [tool.uv.sources]
-mongoengine = { git = "https://github.com/strollby/mongoengine", rev = "v0.30.0-alpha.5" }
+mongoengine = { git = "https://github.com/strollby/mongoengine", rev = "v0.30.0-alpha.6" }
 
 [dependency-groups]
 dev = [

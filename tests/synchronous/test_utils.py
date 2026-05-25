@@ -1,7 +1,7 @@
 import graphene
 
 from .. import types
-from ..models import Article, Child, Reporter
+from ..models import Article, Child, Player, Reporter
 from graphene_mongo.base.utils import (
     get_model_fields,
     get_query_fields,
@@ -144,3 +144,40 @@ def test_get_select_related_paths_reporter_articles():
     queried = {"articles": {"headline": {}}}
     paths = get_select_related_paths(Reporter, queried)
     assert "articles" in paths
+
+
+def test_get_select_related_paths_self_referential_terminates():
+    """Self-referential ListField(ReferenceField('self')) terminates at query depth."""
+    # Player.players = ListField(ReferenceField('Player')) — a cycle in the schema.
+    # Termination is guaranteed by the finite depth of the queried_fields dict (from
+    # the parsed GraphQL query), not by any explicit cycle-breaking in the function.
+    queried = {
+        "players": {
+            "firstName": {},
+            "players": {
+                "firstName": {},
+            },
+        }
+    }
+    paths = get_select_related_paths(Player, queried)
+    assert "players" in paths
+    assert "players__players" in paths
+
+
+def test_get_select_related_paths_relay_connection_unwrapped():
+    """Relay edges→node wrapper around sub-fields is unwrapped so nested paths are found."""
+    # When Player.players is rendered as a Relay connection, sub-fields arrive
+    # wrapped in edges→node. The function should unwrap and still find nested refs.
+    queried = {
+        "players": {
+            "edges": {
+                "node": {
+                    "firstName": {},
+                    "opponent": {"firstName": {}},
+                }
+            }
+        }
+    }
+    paths = get_select_related_paths(Player, queried)
+    assert "players" in paths
+    assert "players__opponent" in paths

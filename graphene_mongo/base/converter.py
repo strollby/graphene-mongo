@@ -172,6 +172,21 @@ def convert_file_to_field(field, registry=None, executor: ExecutorEnum = Executo
     )
 
 
+@convert_mongoengine_field.register(mongoengine.ZonedDateTimeField)
+def convert_zoned_datetime_to_field(field, registry=None, executor: ExecutorEnum = ExecutorEnum.SYNC):
+    """Convert ZonedDateTimeField → graphene.Field(ZonedDateTimeType).
+
+    The raw MongoDB document stores {"utc": datetime, "tz": "timezone_name"}.
+    ZonedDateTimeType exposes both subfields so clients receive the UTC instant
+    and the IANA timezone name needed to reconstruct the original wall-clock time.
+    """
+    return graphene.Field(
+        advanced_types.ZonedDateTimeType,
+        description=get_field_description(field, registry),
+        required=get_field_is_required(field, registry),
+    )
+
+
 @convert_mongoengine_field.register(mongoengine.ListField)
 @convert_mongoengine_field.register(mongoengine.EmbeddedDocumentListField)
 @convert_mongoengine_field.register(mongoengine.GeoPointField)

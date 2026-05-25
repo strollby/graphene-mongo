@@ -72,8 +72,22 @@ def construct_fields(
         if not converted:
             continue
         else:
-            if name in non_required_fields and "required" in converted.kwargs:
-                converted.kwargs["required"] = False
+            if name in non_required_fields:
+                if isinstance(converted, graphene.Dynamic):
+                    _orig_fn = converted.type
+
+                    def _make_optional(fn):
+                        def _thunk():
+                            result = fn()
+                            if result is not None and hasattr(result, "kwargs"):
+                                result.kwargs["required"] = False
+                            return result
+
+                        return _thunk
+
+                    converted = graphene.Dynamic(_make_optional(_orig_fn))
+                elif "required" in converted.kwargs:
+                    converted.kwargs["required"] = False
         fields[name] = converted
 
     return fields, self_referenced

@@ -1,7 +1,13 @@
 import base64
+import datetime
 
 import graphene
 from graphene_federation import shareable
+
+try:
+    from datetime import UTC
+except ImportError:
+    UTC = datetime.timezone.utc
 
 
 @shareable  # Support Graphene Federation v2
@@ -142,3 +148,56 @@ class MultiPolygonFieldType(_CoordinatesTypeField):
             )
         )
     )
+
+
+@shareable  # Support Graphene Federation v2
+class ZonedDateTimeType(graphene.ObjectType):
+    """GraphQL ObjectType for a MongoEngine ZonedDateTimeField.
+
+    Stores a datetime together with its originating timezone so the frontend
+    can display the local time without losing DST or offset information.
+
+    Fields:
+        utc (DateTime): The moment in time expressed as a UTC-normalised
+            ISO-8601 datetime string. Use this for all comparisons and sorting.
+        tz (String): IANA timezone name (e.g. "Asia/Kolkata", "America/New_York")
+            that identifies the wall-clock timezone the value was recorded in.
+    """
+
+    utc = graphene.DateTime(required=True)
+    tz = graphene.String(required=True)
+
+    def resolve_utc(self, info):
+        """Return the UTC datetime.
+
+        Handles both the raw MongoDB dict ({"utc": datetime, "tz": str}) and the
+        timezone-aware datetime that ZonedDateTimeField.to_python returns.
+        """
+        if isinstance(self, dict):
+            return self["utc"]
+        return self.astimezone(UTC)
+
+    def resolve_tz(self, info):
+        """Return the IANA timezone name.
+
+        Handles both the raw MongoDB dict and the timezone-aware datetime that
+        ZonedDateTimeField.to_python returns.
+        """
+        if isinstance(self, dict):
+            return self["tz"]
+        tzinfo = self.tzinfo
+        if hasattr(tzinfo, "key"):
+            return tzinfo.key
+        return str(tzinfo)
+
+
+class ZonedDateTimeInputType(graphene.InputObjectType):
+    """GraphQL InputObjectType for writing a MongoEngine ZonedDateTimeField.
+
+    Fields:
+        utc (DateTime): The moment expressed as a UTC datetime. Required.
+        tz (String): IANA timezone name (e.g. "Asia/Kolkata"). Required.
+    """
+
+    utc = graphene.DateTime(required=True)
+    tz = graphene.String(required=True)

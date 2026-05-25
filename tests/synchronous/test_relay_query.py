@@ -1476,3 +1476,240 @@ def test_connection_field_resolver_returns_document_raises(fixtures):
     assert "not supported" in str(result.errors[0])
 
 
+# ---------------------------------------------------------------------------
+# Enum field tests
+# ---------------------------------------------------------------------------
+
+def test_enum_field_query(fixtures):
+    """ListField(EnumField) serialises enum values correctly in a relay query."""
+    class Query(graphene.ObjectType):
+        school_classes = MongoengineConnectionField(nodes.SchoolClassNode)
+
+    schema = graphene.Schema(query=Query, auto_camelcase=True)
+    result, count = execute_count(
+        schema,
+        "{ schoolClasses { edges { node { allowedGrades } } } }",
+    )
+    assert not result.errors, result.errors
+    all_grades = [
+        e["node"]["allowedGrades"]
+        for e in result.data["schoolClasses"]["edges"]
+    ]
+    assert ["A", "B"] in all_grades
+    assert ["B"] in all_grades
+    assert count == 1
+
+
+def test_enum_field_filter(fixtures):
+    """Filtering on a ListField(EnumField) by enum value returns only matching documents."""
+    class Query(graphene.ObjectType):
+        school_classes = MongoengineConnectionField(nodes.SchoolClassNode)
+
+    schema = graphene.Schema(query=Query, auto_camelcase=True)
+    # Enum values are passed without quotes in GraphQL (A not "A")
+    result, count = execute_count(
+        schema,
+        "{ schoolClasses(allowedGrades: A) { edges { node { allowedGrades } } } }",
+    )
+    assert not result.errors, result.errors
+    edges = result.data["schoolClasses"]["edges"]
+    assert len(edges) == 1
+    assert edges[0]["node"]["allowedGrades"] == ["A", "B"]
+    assert count == 1
+
+
+# ---------------------------------------------------------------------------
+# Pagination edge cases
+# ---------------------------------------------------------------------------
+
+def test_empty_result_pageinfo(fixtures):
+    """pageInfo on an empty result set has hasNextPage=False and hasPreviousPage=False."""
+    class Query(graphene.ObjectType):
+        articles = MongoengineConnectionField(nodes.ArticleNode)
+
+    schema = graphene.Schema(query=Query, auto_camelcase=True)
+    result, _ = execute_count(
+        schema,
+        '{ articles(headline: "__no_such_article__") { edges { node { headline } } pageInfo { hasNextPage hasPreviousPage } } }',
+    )
+    assert not result.errors, result.errors
+    data = result.data["articles"]
+    assert data["edges"] == []
+    assert data["pageInfo"]["hasNextPage"] is False
+    assert data["pageInfo"]["hasPreviousPage"] is False
+
+
+# ---------------------------------------------------------------------------
+# Meta option projection tests
+# ---------------------------------------------------------------------------
+
+def test_only_fields_restricts_mongodb_projection(fixtures):
+    """only_fields on the Meta class limits which fields are fetched from MongoDB."""
+    from graphene_mongo.synchronous.types import MongoengineObjectType
+    from ..mongo_capture import captured_commands
+
+    class EditorOnlyNameNode(MongoengineObjectType):
+        class Meta:
+            model = models.Editor
+            interfaces = (Node,)
+            only_fields = ("first_name",)
+
+    class Query(graphene.ObjectType):
+        editors = MongoengineConnectionField(EditorOnlyNameNode)
+
+    schema = graphene.Schema(query=Query, auto_camelcase=True)
+    with captured_commands() as cap:
+        result = schema.execute(
+            "{ editors { edges { node { firstName } } } }"
+        )
+
+    assert not result.errors, result.errors
+    projected = cap.projected_fields()
+    assert "fname" in projected
+    assert "avatar" not in projected
+    assert "last_name" not in projected
+
+
+def test_exclude_fields_restricts_mongodb_projection(fixtures):
+    """exclude_fields removes fields from the MongoDB projection."""
+    from graphene_mongo.synchronous.types import MongoengineObjectType
+    from ..mongo_capture import captured_commands
+
+    class EditorNoAvatarNode(MongoengineObjectType):
+        class Meta:
+            model = models.Editor
+            interfaces = (Node,)
+            exclude_fields = ("avatar",)
+
+    class Query(graphene.ObjectType):
+        editors = MongoengineConnectionField(EditorNoAvatarNode)
+
+    schema = graphene.Schema(query=Query, auto_camelcase=True)
+    with captured_commands() as cap:
+        result = schema.execute(
+            "{ editors { edges { node { firstName lastName } } } }"
+        )
+
+    assert not result.errors, result.errors
+    projected = cap.projected_fields()
+    assert "fname" in projected
+    assert "last_name" in projected
+    assert "avatar" not in projected
+
+
+def test_required_fields_always_projected(fixtures):
+    """required_fields are included in the MongoDB projection even when not queried."""
+    from graphene_mongo.synchronous.types import MongoengineObjectType
+    from ..mongo_capture import captured_commands
+
+    class EditorRequiredLastNameNode(MongoengineObjectType):
+        class Meta:
+            model = models.Editor
+            interfaces = (Node,)
+            required_fields = ("last_name",)
+
+    class Query(graphene.ObjectType):
+        editors = MongoengineConnectionField(EditorRequiredLastNameNode)
+
+    schema = graphene.Schema(query=Query, auto_camelcase=True)
+    with captured_commands() as cap:
+        # Query only firstName — last_name is NOT in the GraphQL selection
+        result = schema.execute(
+            "{ editors { edges { node { firstName } } } }"
+        )
+
+    assert not result.errors, result.errors
+    projected = cap.projected_fields()
+    assert "last_name" in projected  # required_fields forces it into the projection
+    assert "fname" in projected      # queried field is also projected
+
+
+def test_geo_near_filter_arg_exists():
+    """filter_fields {"loc": ["near"]} generates a loc__near arg with PointFieldInputType."""
+    from graphene_mongo.synchronous.types import MongoengineObjectType
+    from graphene_mongo.base.advanced_types import PointFieldInputType
+
+    class ChildGeoNode(MongoengineObjectType):
+        class Meta:
+            model = models.Child
+            interfaces = (Node,)
+            filter_fields = {"loc": ["near"]}
+
+    field = MongoengineConnectionField(ChildGeoNode)
+    assert "loc__near" in field.args
+    assert isinstance(field.args["loc__near"], graphene.Argument)
+    assert field.args["loc__near"].type == PointFieldInputType
+
+
+def test_geo_near_filter_query(fixtures):
+    """loc__near filter returns only documents within the specified distance."""
+    from graphene_mongo.synchronous.types import MongoengineObjectType
+
+    class ChildGeoQueryNode(MongoengineObjectType):
+        class Meta:
+            model = models.Child
+            interfaces = (Node,)
+            filter_fields = {"loc": ["near"]}
+
+    models.Child.ensure_indexes()
+
+    class Query(graphene.ObjectType):
+        children = MongoengineConnectionField(ChildGeoQueryNode)
+
+    schema = graphene.Schema(query=Query, auto_camelcase=True)
+    # child2 is at [10, 20]; child1 has no location.
+    # Querying near [10, 20] should return child2 and exclude child1 (no loc).
+    # auto_camelcase converts loc__near → loc_Near (double-underscore separator is preserved)
+    result = schema.execute(
+        """
+        {
+            children(loc_Near: {coordinates: [10.0, 20.0]}) {
+                edges {
+                    node {
+                        bar
+                    }
+                }
+            }
+        }
+        """
+    )
+    assert not result.errors, result.errors
+    bars = [e["node"]["bar"] for e in result.data["children"]["edges"]]
+    assert "bar" in bars
+    assert "BAR" not in bars  # child1 has no loc, so it's excluded
+
+
+def test_filter_fields_invalid_lookup_schema_arg_exists():
+    """filter_fields with an unknown lookup builds the schema arg without error."""
+    from graphene_mongo.synchronous.types import MongoengineObjectType
+
+    class ArticleInvalidFilterNode(MongoengineObjectType):
+        class Meta:
+            model = models.Article
+            interfaces = (Node,)
+            filter_fields = {"headline": ["bad_op"]}
+
+    field = MongoengineConnectionField(ArticleInvalidFilterNode)
+    assert "headline__bad_op" in field.args
+
+
+def test_filter_fields_invalid_lookup_raises_at_query_time(fixtures):
+    """An unknown lookup in filter_fields is accepted by the schema but fails at query execution."""
+    from graphene_mongo.synchronous.types import MongoengineObjectType
+
+    class ArticleInvalidLookupNode(MongoengineObjectType):
+        class Meta:
+            model = models.Article
+            interfaces = (Node,)
+            filter_fields = {"headline": ["bad_op"]}
+
+    class Query(graphene.ObjectType):
+        articles = MongoengineConnectionField(ArticleInvalidLookupNode)
+
+    schema = graphene.Schema(query=Query, auto_camelcase=True)
+    result = schema.execute(
+        '{ articles(headlineBadOp: "My Article") { edges { node { headline } } } }'
+    )
+    assert result.errors
+
+

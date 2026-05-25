@@ -201,3 +201,86 @@ class SchoolClass(mongoengine.Document):
 
 class School(mongoengine.Document):
     classes = mongoengine.ListField(mongoengine.ReferenceField(SchoolClass))
+
+
+# ---------------------------------------------------------------------------
+# Deep select_related stress-test models — 10-level reference chain
+# ---------------------------------------------------------------------------
+
+class DeepL10(mongoengine.Document):
+    meta = {"collection": "test_deep_l10"}
+    name = mongoengine.StringField()
+
+
+class DeepL9(mongoengine.Document):
+    meta = {"collection": "test_deep_l9"}
+    name = mongoengine.StringField()
+    child = mongoengine.ReferenceField(DeepL10)
+
+
+class DeepL8(mongoengine.Document):
+    meta = {"collection": "test_deep_l8"}
+    name = mongoengine.StringField()
+    child = mongoengine.ReferenceField(DeepL9)
+    # list of references at level 8 → level 10
+    extras = mongoengine.ListField(mongoengine.ReferenceField(DeepL10))
+
+
+class DeepL7(mongoengine.Document):
+    meta = {"collection": "test_deep_l7"}
+    name = mongoengine.StringField()
+    child = mongoengine.ReferenceField(DeepL8)
+
+
+class DeepL6(mongoengine.Document):
+    meta = {"collection": "test_deep_l6"}
+    name = mongoengine.StringField()
+    child = mongoengine.ReferenceField(DeepL7)
+    # generic reference at level 6 — can point at L7 or L8
+    generic_item = mongoengine.GenericReferenceField(choices=[DeepL7, DeepL8])
+
+
+class DeepL5(mongoengine.Document):
+    meta = {"collection": "test_deep_l5"}
+    name = mongoengine.StringField()
+    child = mongoengine.ReferenceField(DeepL6)
+    # list of sibling-level references
+    siblings = mongoengine.ListField(mongoengine.ReferenceField("DeepL5"))
+
+
+class DeepL4(mongoengine.Document):
+    meta = {"collection": "test_deep_l4"}
+    name = mongoengine.StringField()
+    child = mongoengine.ReferenceField(DeepL5)
+
+
+class DeepL3(mongoengine.Document):
+    meta = {"collection": "test_deep_l3"}
+    name = mongoengine.StringField()
+    child = mongoengine.ReferenceField(DeepL4)
+    # generic reference at level 3 — can point at L4 or L5
+    generic_item = mongoengine.GenericReferenceField(choices=[DeepL4, DeepL5])
+    # list of references to a deeper level
+    extra_refs = mongoengine.ListField(mongoengine.ReferenceField(DeepL5))
+
+
+class DeepL2(mongoengine.Document):
+    meta = {"collection": "test_deep_l2"}
+    name = mongoengine.StringField()
+    child = mongoengine.ReferenceField(DeepL3)
+
+
+class DeepL1(mongoengine.Document):
+    meta = {"collection": "test_deep_l1"}
+    name = mongoengine.StringField()
+    child = mongoengine.ReferenceField(DeepL2)
+    # list of references at level 1 → level 2
+    children = mongoengine.ListField(mongoengine.ReferenceField(DeepL2))
+
+
+class Event(mongoengine.Document):
+    """Test model for ZonedDateTimeField — stores a name and a timezone-aware start time."""
+
+    meta = {"collection": "test_event"}
+    name = mongoengine.StringField(required=True)
+    start_time = mongoengine.ZonedDateTimeField()

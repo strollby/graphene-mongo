@@ -416,3 +416,85 @@ async def test_should_query_cell_tower(fixtures):
     assert not result.errors
     assert result.data == expected
     assert count == 1
+
+async def test_should_query_zoned_datetime(fixtures):
+    from .nodes import EventAsyncNode
+    from graphene_mongo import AsyncMongoengineConnectionField
+
+    class Query(graphene.ObjectType):
+        events = AsyncMongoengineConnectionField(EventAsyncNode)
+
+    schema = graphene.Schema(query=Query, auto_camelcase=True)
+    result = await schema.execute_async(
+        "{ events { edges { node { name startTime { utc tz } } } } }"
+    )
+    assert not result.errors, result.errors
+    edges = result.data["events"]["edges"]
+    assert len(edges) == 2
+    names = {e["node"]["name"] for e in edges}
+    assert names == {"Kolkata Summit", "New York Meetup"}
+    for edge in edges:
+        st = edge["node"]["startTime"]
+        assert st["utc"] is not None
+        assert st["tz"] in ("Asia/Kolkata", "America/New_York")
+
+
+async def test_should_filter_zoned_datetime_by_utc(fixtures):
+    from .nodes import EventAsyncNode
+    from graphene_mongo import AsyncMongoengineConnectionField
+
+    class Query(graphene.ObjectType):
+        events = AsyncMongoengineConnectionField(EventAsyncNode)
+
+    schema = graphene.Schema(query=Query, auto_camelcase=True)
+    # Kolkata Summit: 2024-06-15 14:30 IST = 2024-06-15 09:00:00 UTC (exact equality)
+    result = await schema.execute_async(
+        '{ events(startTime: "2024-06-15T09:00:00+00:00") { edges { node { name startTime { tz } } } } }'
+    )
+    assert not result.errors, result.errors
+    edges = result.data["events"]["edges"]
+    assert len(edges) == 1
+    assert edges[0]["node"]["name"] == "Kolkata Summit"
+    assert edges[0]["node"]["startTime"]["tz"] == "Asia/Kolkata"
+
+
+async def test_should_filter_zoned_datetime_range(fixtures):
+    """filter_fields gte/lte/gt/lt/in on ZonedDateTimeField compare against the utc subfield."""
+    from graphene_mongo.asynchronous.types import AsyncMongoengineObjectType
+    from graphene_mongo import AsyncMongoengineConnectionField
+    from .. import models as m
+
+    class EventRangeAsyncNode(AsyncMongoengineObjectType):
+        class Meta:
+            model = m.Event
+            interfaces = (graphene.relay.Node,)
+            filter_fields = {"start_time": ["gte", "lte", "gt", "lt", "in"]}
+
+    class Query(graphene.ObjectType):
+        events = AsyncMongoengineConnectionField(EventRangeAsyncNode)
+
+    schema = graphene.Schema(query=Query, auto_camelcase=True)
+
+    # gte 2024-07-01 → only NY Meetup (startTime_Gte due to double-underscore camelcase)
+    result = await schema.execute_async(
+        '{ events(startTime_Gte: "2024-07-01T00:00:00+00:00") { edges { node { name } } } }'
+    )
+    assert not result.errors, result.errors
+    names = [e["node"]["name"] for e in result.data["events"]["edges"]]
+    assert names == ["New York Meetup"]
+
+    # lte 2024-07-01 → only Kolkata Summit
+    result = await schema.execute_async(
+        '{ events(startTime_Lte: "2024-07-01T00:00:00+00:00") { edges { node { name } } } }'
+    )
+    assert not result.errors, result.errors
+    names = [e["node"]["name"] for e in result.data["events"]["edges"]]
+    assert names == ["Kolkata Summit"]
+
+    # in [kolkata-utc, ny-utc] → both events (list of datetimes)
+    result = await schema.execute_async(
+        '{ events(startTime_In: ["2024-06-15T09:00:00+00:00", "2024-09-01T13:00:00+00:00"]) { edges { node { name } } } }'
+    )
+    assert not result.errors, result.errors
+    names = {e["node"]["name"] for e in result.data["events"]["edges"]}
+    assert names == {"Kolkata Summit", "New York Meetup"}

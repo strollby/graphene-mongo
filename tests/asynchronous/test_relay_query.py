@@ -1493,3 +1493,257 @@ async def test_connection_field_resolver_returns_async_queryset(fixtures):
     assert count == 1  # AsyncQuerySet goes through select_related — single aggregation
 
 
+async def test_connection_field_get_queryset_rejects_sync_queryset(fixtures):
+    """AsyncMongoengineConnectionField raises TypeError when get_queryset callback returns a sync QuerySet."""
+
+    class Query(graphene.ObjectType):
+        articles = AsyncMongoengineConnectionField(
+            nodes.ArticleAsyncNode,
+            get_queryset=lambda model, info, **kw: model.objects.all(),  # sync QS — rejected
+        )
+
+    schema = graphene.Schema(query=Query)
+    result = await schema.execute_async(
+        "{ articles { edges { node { headline } } } }"
+    )
+    assert result.errors
+    assert any("AsyncQuerySet" in str(e) for e in result.errors)
+
+
+# ---------------------------------------------------------------------------
+# Enum field tests
+# ---------------------------------------------------------------------------
+
+async def test_enum_field_query(fixtures):
+    """ListField(EnumField) serialises enum values correctly in an async relay query."""
+    class Query(graphene.ObjectType):
+        school_classes = AsyncMongoengineConnectionField(nodes.SchoolClassAsyncNode)
+
+    schema = graphene.Schema(query=Query, auto_camelcase=True)
+    result, count = await execute_count(
+        schema,
+        "{ schoolClasses { edges { node { allowedGrades } } } }",
+    )
+    assert not result.errors, result.errors
+    all_grades = [
+        e["node"]["allowedGrades"]
+        for e in result.data["schoolClasses"]["edges"]
+    ]
+    assert ["A", "B"] in all_grades
+    assert ["B"] in all_grades
+    assert count == 1
+
+
+async def test_enum_field_filter(fixtures):
+    """Filtering on a ListField(EnumField) by enum value returns only matching documents."""
+    class Query(graphene.ObjectType):
+        school_classes = AsyncMongoengineConnectionField(nodes.SchoolClassAsyncNode)
+
+    schema = graphene.Schema(query=Query, auto_camelcase=True)
+    # Enum values are passed without quotes in GraphQL (A not "A")
+    result, count = await execute_count(
+        schema,
+        "{ schoolClasses(allowedGrades: A) { edges { node { allowedGrades } } } }",
+    )
+    assert not result.errors, result.errors
+    edges = result.data["schoolClasses"]["edges"]
+    assert len(edges) == 1
+    assert edges[0]["node"]["allowedGrades"] == ["A", "B"]
+    assert count == 1
+
+
+# ---------------------------------------------------------------------------
+# Pagination edge cases
+# ---------------------------------------------------------------------------
+
+async def test_empty_result_pageinfo(fixtures):
+    """pageInfo on an empty result set has hasNextPage=False and hasPreviousPage=False."""
+    class Query(graphene.ObjectType):
+        articles = AsyncMongoengineConnectionField(nodes.ArticleAsyncNode)
+
+    schema = graphene.Schema(query=Query, auto_camelcase=True)
+    result, _ = await execute_count(
+        schema,
+        '{ articles(headline: "__no_such_article__") { edges { node { headline } } pageInfo { hasNextPage hasPreviousPage } } }',
+    )
+    assert not result.errors, result.errors
+    data = result.data["articles"]
+    assert data["edges"] == []
+    assert data["pageInfo"]["hasNextPage"] is False
+    assert data["pageInfo"]["hasPreviousPage"] is False
+
+
+# ---------------------------------------------------------------------------
+# Meta option projection tests
+# ---------------------------------------------------------------------------
+
+async def test_only_fields_restricts_mongodb_projection(fixtures):
+    """only_fields on the Meta class limits which fields are fetched from MongoDB."""
+    from graphene_mongo.asynchronous.types import AsyncMongoengineObjectType
+    from ..mongo_capture import captured_commands
+
+    class EditorOnlyNameAsyncNode(AsyncMongoengineObjectType):
+        class Meta:
+            model = models.Editor
+            interfaces = (Node,)
+            only_fields = ("first_name",)
+
+    class Query(graphene.ObjectType):
+        editors = AsyncMongoengineConnectionField(EditorOnlyNameAsyncNode)
+
+    schema = graphene.Schema(query=Query, auto_camelcase=True)
+    async with captured_commands() as cap:
+        result = await schema.execute_async(
+            "{ editors { edges { node { firstName } } } }"
+        )
+
+    assert not result.errors, result.errors
+    projected = cap.projected_fields()
+    assert "fname" in projected
+    assert "avatar" not in projected
+    assert "last_name" not in projected
+
+
+async def test_exclude_fields_restricts_mongodb_projection(fixtures):
+    """exclude_fields removes fields from the MongoDB projection."""
+    from graphene_mongo.asynchronous.types import AsyncMongoengineObjectType
+    from ..mongo_capture import captured_commands
+
+    class EditorNoAvatarAsyncNode(AsyncMongoengineObjectType):
+        class Meta:
+            model = models.Editor
+            interfaces = (Node,)
+            exclude_fields = ("avatar",)
+
+    class Query(graphene.ObjectType):
+        editors = AsyncMongoengineConnectionField(EditorNoAvatarAsyncNode)
+
+    schema = graphene.Schema(query=Query, auto_camelcase=True)
+    async with captured_commands() as cap:
+        result = await schema.execute_async(
+            "{ editors { edges { node { firstName lastName } } } }"
+        )
+
+    assert not result.errors, result.errors
+    projected = cap.projected_fields()
+    assert "fname" in projected
+    assert "last_name" in projected
+    assert "avatar" not in projected
+
+
+async def test_required_fields_always_projected(fixtures):
+    """required_fields are included in the MongoDB projection even when not queried."""
+    from graphene_mongo.asynchronous.types import AsyncMongoengineObjectType
+    from ..mongo_capture import captured_commands
+
+    class EditorRequiredLastNameAsyncNode(AsyncMongoengineObjectType):
+        class Meta:
+            model = models.Editor
+            interfaces = (Node,)
+            required_fields = ("last_name",)
+
+    class Query(graphene.ObjectType):
+        editors = AsyncMongoengineConnectionField(EditorRequiredLastNameAsyncNode)
+
+    schema = graphene.Schema(query=Query, auto_camelcase=True)
+    async with captured_commands() as cap:
+        # Query only firstName — last_name is NOT in the GraphQL selection
+        result = await schema.execute_async(
+            "{ editors { edges { node { firstName } } } }"
+        )
+
+    assert not result.errors, result.errors
+    projected = cap.projected_fields()
+    assert "last_name" in projected  # required_fields forces it into the projection
+    assert "fname" in projected      # queried field is also projected
+
+
+def test_geo_near_filter_arg_exists():
+    """filter_fields {"loc": ["near"]} generates a loc__near arg with PointFieldInputType."""
+    from graphene_mongo.asynchronous.types import AsyncMongoengineObjectType
+    from graphene_mongo.base.advanced_types import PointFieldInputType
+
+    class ChildGeoAsyncNode(AsyncMongoengineObjectType):
+        class Meta:
+            model = models.Child
+            interfaces = (Node,)
+            filter_fields = {"loc": ["near"]}
+
+    field = AsyncMongoengineConnectionField(ChildGeoAsyncNode)
+    assert "loc__near" in field.args
+    assert isinstance(field.args["loc__near"], graphene.Argument)
+    assert field.args["loc__near"].type == PointFieldInputType
+
+
+async def test_geo_near_filter_query(fixtures):
+    """loc__near filter returns only documents within the specified distance."""
+    from graphene_mongo.asynchronous.types import AsyncMongoengineObjectType
+
+    class ChildGeoQueryAsyncNode(AsyncMongoengineObjectType):
+        class Meta:
+            model = models.Child
+            interfaces = (Node,)
+            filter_fields = {"loc": ["near"]}
+
+    models.Child.ensure_indexes()
+
+    class Query(graphene.ObjectType):
+        children = AsyncMongoengineConnectionField(ChildGeoQueryAsyncNode)
+
+    schema = graphene.Schema(query=Query, auto_camelcase=True)
+    # child2 is at [10, 20]; child1 has no location.
+    # Querying near [10, 20] should return child2 and exclude child1 (no loc).
+    # auto_camelcase converts loc__near → loc_Near (double-underscore separator is preserved)
+    result = await schema.execute_async(
+        """
+        {
+            children(loc_Near: {coordinates: [10.0, 20.0]}) {
+                edges {
+                    node {
+                        bar
+                    }
+                }
+            }
+        }
+        """
+    )
+    assert not result.errors, result.errors
+    bars = [e["node"]["bar"] for e in result.data["children"]["edges"]]
+    assert "bar" in bars
+    assert "BAR" not in bars  # child1 has no loc, so it's excluded
+
+
+def test_filter_fields_invalid_lookup_schema_arg_exists():
+    """filter_fields with an unknown lookup builds the schema arg without error."""
+    from graphene_mongo.asynchronous.types import AsyncMongoengineObjectType
+
+    class ArticleInvalidFilterAsyncNode(AsyncMongoengineObjectType):
+        class Meta:
+            model = models.Article
+            interfaces = (Node,)
+            filter_fields = {"headline": ["bad_op"]}
+
+    field = AsyncMongoengineConnectionField(ArticleInvalidFilterAsyncNode)
+    assert "headline__bad_op" in field.args
+
+
+async def test_filter_fields_invalid_lookup_raises_at_query_time(fixtures):
+    """An unknown lookup in filter_fields is accepted by the schema but fails at query execution."""
+    from graphene_mongo.asynchronous.types import AsyncMongoengineObjectType
+
+    class ArticleInvalidLookupAsyncNode(AsyncMongoengineObjectType):
+        class Meta:
+            model = models.Article
+            interfaces = (Node,)
+            filter_fields = {"headline": ["bad_op"]}
+
+    class Query(graphene.ObjectType):
+        articles = AsyncMongoengineConnectionField(ArticleInvalidLookupAsyncNode)
+
+    schema = graphene.Schema(query=Query, auto_camelcase=True)
+    result = await schema.execute_async(
+        '{ articles(headlineBadOp: "My Article") { edges { node { headline } } } }'
+    )
+    assert result.errors
+
+

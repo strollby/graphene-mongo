@@ -420,3 +420,87 @@ def test_should_query_cell_tower(fixtures):
     assert not result.errors
     assert result.data == expected
     assert count == 1
+
+def test_should_query_zoned_datetime(fixtures):
+    from .nodes import EventNode
+    from graphene_mongo.synchronous.fields import MongoengineConnectionField
+
+    class Query(graphene.ObjectType):
+        events = MongoengineConnectionField(EventNode)
+
+    schema = graphene.Schema(query=Query, auto_camelcase=True)
+    result = schema.execute(
+        "{ events { edges { node { name startTime { utc tz } } } } }"
+    )
+    assert not result.errors, result.errors
+    edges = result.data["events"]["edges"]
+    assert len(edges) == 2
+    names = {e["node"]["name"] for e in edges}
+    assert names == {"Kolkata Summit", "New York Meetup"}
+    for edge in edges:
+        st = edge["node"]["startTime"]
+        assert st["utc"] is not None
+        assert st["tz"] in ("Asia/Kolkata", "America/New_York")
+
+
+def test_should_filter_zoned_datetime_by_utc(fixtures):
+    """Exact equality on ZonedDateTimeField filters against the stored utc subfield."""
+    from .nodes import EventNode
+    from graphene_mongo.synchronous.fields import MongoengineConnectionField
+
+    class Query(graphene.ObjectType):
+        events = MongoengineConnectionField(EventNode)
+
+    schema = graphene.Schema(query=Query, auto_camelcase=True)
+    # Kolkata Summit: 2024-06-15 14:30 IST = 2024-06-15 09:00:00 UTC (exact equality)
+    result = schema.execute(
+        '{ events(startTime: "2024-06-15T09:00:00+00:00") { edges { node { name startTime { tz } } } } }'
+    )
+    assert not result.errors, result.errors
+    edges = result.data["events"]["edges"]
+    assert len(edges) == 1
+    assert edges[0]["node"]["name"] == "Kolkata Summit"
+    assert edges[0]["node"]["startTime"]["tz"] == "Asia/Kolkata"
+
+
+def test_should_filter_zoned_datetime_range(fixtures):
+    """filter_fields gte/lte on ZonedDateTimeField compare against the utc subfield."""
+    from graphene_mongo.synchronous.types import MongoengineObjectType
+    from graphene_mongo.synchronous.fields import MongoengineConnectionField
+    from .. import models as m
+
+    class EventRangeNode(MongoengineObjectType):
+        class Meta:
+            model = m.Event
+            interfaces = (graphene.relay.Node,)
+            filter_fields = {"start_time": ["gte", "lte", "gt", "lt", "in"]}
+
+    class Query(graphene.ObjectType):
+        events = MongoengineConnectionField(EventRangeNode)
+
+    schema = graphene.Schema(query=Query, auto_camelcase=True)
+
+    # Both events: Kolkata=2024-06-15T09:00Z, NY=2024-09-01T13:00Z
+    # gte 2024-07-01 → only NY Meetup (auto_camelcase: start_time__gte → startTime_Gte)
+    result = schema.execute(
+        '{ events(startTime_Gte: "2024-07-01T00:00:00+00:00") { edges { node { name } } } }'
+    )
+    assert not result.errors, result.errors
+    names = [e["node"]["name"] for e in result.data["events"]["edges"]]
+    assert names == ["New York Meetup"]
+
+    # lte 2024-07-01 → only Kolkata Summit
+    result = schema.execute(
+        '{ events(startTime_Lte: "2024-07-01T00:00:00+00:00") { edges { node { name } } } }'
+    )
+    assert not result.errors, result.errors
+    names = [e["node"]["name"] for e in result.data["events"]["edges"]]
+    assert names == ["Kolkata Summit"]
+
+    # in [kolkata-utc, ny-utc] → both events (list of datetimes)
+    result = schema.execute(
+        '{ events(startTime_In: ["2024-06-15T09:00:00+00:00", "2024-09-01T13:00:00+00:00"]) { edges { node { name } } } }'
+    )
+    assert not result.errors, result.errors
+    names = {e["node"]["name"] for e in result.data["events"]["edges"]}
+    assert names == {"Kolkata Summit", "New York Meetup"}

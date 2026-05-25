@@ -106,3 +106,89 @@ class FooAsyncNode(AsyncMongoengineObjectType):
     class Meta:
         model = models.Foo
         interfaces = (Node,)
+
+
+# Deep select_related stress-test nodes
+class DeepL10AsyncNode(AsyncMongoengineObjectType):
+    class Meta:
+        model = models.DeepL10
+        interfaces = (Node,)
+
+
+class DeepL9AsyncNode(AsyncMongoengineObjectType):
+    class Meta:
+        model = models.DeepL9
+        interfaces = (Node,)
+
+
+class DeepL8AsyncNode(AsyncMongoengineObjectType):
+    class Meta:
+        model = models.DeepL8
+        interfaces = (Node,)
+
+
+class DeepL7AsyncNode(AsyncMongoengineObjectType):
+    class Meta:
+        model = models.DeepL7
+        interfaces = (Node,)
+
+
+class DeepL6AsyncNode(AsyncMongoengineObjectType):
+    class Meta:
+        model = models.DeepL6
+        interfaces = (Node,)
+
+
+class DeepL5AsyncNode(AsyncMongoengineObjectType):
+    class Meta:
+        model = models.DeepL5
+        interfaces = (Node,)
+
+
+class DeepL4AsyncNode(AsyncMongoengineObjectType):
+    class Meta:
+        model = models.DeepL4
+        interfaces = (Node,)
+
+
+class DeepL3AsyncNode(AsyncMongoengineObjectType):
+    class Meta:
+        model = models.DeepL3
+        interfaces = (Node,)
+
+
+class DeepL2AsyncNode(AsyncMongoengineObjectType):
+    class Meta:
+        model = models.DeepL2
+        interfaces = (Node,)
+
+
+class DeepL1AsyncNode(AsyncMongoengineObjectType):
+    class Meta:
+        model = models.DeepL1
+        interfaces = (Node,)
+
+
+class BenchAsyncNode(AsyncMongoengineObjectType):
+    class Meta:
+        model = models.Bench
+        interfaces = (Node,)
+
+
+class ExamAsyncNode(AsyncMongoengineObjectType):
+    class Meta:
+        model = models.Exam
+        interfaces = (Node,)
+
+
+class SchoolClassAsyncNode(AsyncMongoengineObjectType):
+    class Meta:
+        model = models.SchoolClass
+        interfaces = (Node,)
+        only_fields = ("allowed_grades", "subjects")
+
+
+class EventAsyncNode(AsyncMongoengineObjectType):
+    class Meta:
+        model = models.Event
+        interfaces = (Node,)

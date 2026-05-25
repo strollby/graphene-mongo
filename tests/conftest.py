@@ -10,18 +10,34 @@ import pytest
 from .models import (
     AnotherChild,
     Article,
+    Bench,
     CellTower,
     Child,
     ChildRegisteredAfter,
     ChildRegisteredBefore,
+    DeepL1,
+    DeepL2,
+    DeepL3,
+    DeepL4,
+    DeepL5,
+    DeepL6,
+    DeepL7,
+    DeepL8,
+    DeepL9,
+    DeepL10,
     Editor,
     EmbeddedArticle,
+    Event,
+    Exam,
+    GradeEnum,
     ParentWithRelationship,
     Player,
     ProfessorMetadata,
     ProfessorVector,
     Publisher,
     Reporter,
+    School,
+    SchoolClass,
 )
 
 current_dirname = os.path.dirname(os.path.abspath(__file__))
@@ -183,6 +199,71 @@ def fixtures():
     child3.parent = child4.parent = parent
     child3.save()
     child4.save()
+
+    # Deep select_related chain — 10 levels
+    for cls in [DeepL1, DeepL2, DeepL3, DeepL4, DeepL5, DeepL6, DeepL7, DeepL8, DeepL9, DeepL10]:
+        cls.drop_collection()
+
+    l10a = DeepL10(name="L10-A").save()
+    l10b = DeepL10(name="L10-B").save()
+    l10c = DeepL10(name="L10-C").save()
+
+    l9 = DeepL9(name="L9", child=l10a).save()
+
+    l8 = DeepL8(name="L8", child=l9, extras=[l10b, l10c]).save()
+
+    l7 = DeepL7(name="L7", child=l8).save()
+
+    l6 = DeepL6(name="L6", child=l7, generic_item=l7).save()
+
+    l5a = DeepL5(name="L5-A", child=l6).save()
+    l5b = DeepL5(name="L5-B", child=l6).save()
+    l5a.siblings = [l5b]
+    l5a.save()
+
+    l4 = DeepL4(name="L4", child=l5a).save()
+
+    l3 = DeepL3(name="L3", child=l4, generic_item=l4, extra_refs=[l5a, l5b]).save()
+
+    l2a = DeepL2(name="L2-A", child=l3).save()
+    l2b = DeepL2(name="L2-B", child=l3).save()
+
+    DeepL1(name="L1", child=l2a, children=[l2a, l2b]).save()
+
+    # Enum field models
+    for cls in [Bench, Exam, SchoolClass, School]:
+        cls.drop_collection()
+
+    bench1 = Bench(size=10).save()
+    bench2 = Bench(size=20).save()
+    exam1 = Exam(size=5).save()
+
+    sc1 = SchoolClass(
+        allowed_grades=[GradeEnum.A, GradeEnum.B],
+        subjects=["math", "science"],
+        records=[bench1, exam1],
+    ).save()
+    sc2 = SchoolClass(
+        allowed_grades=[GradeEnum.B],
+        subjects=["history"],
+        records=[bench2],
+    ).save()
+
+    School(classes=[sc1, sc2]).save()
+
+    # ZonedDateTimeField model
+    Event.drop_collection()
+    from zoneinfo import ZoneInfo
+    import datetime as _dt
+    Event(
+        name="Kolkata Summit",
+        start_time=_dt.datetime(2024, 6, 15, 14, 30, tzinfo=ZoneInfo("Asia/Kolkata")),
+    ).save()
+    Event(
+        name="New York Meetup",
+        start_time=_dt.datetime(2024, 9, 1, 9, 0, tzinfo=ZoneInfo("America/New_York")),
+    ).save()
+
     return True
 
 

@@ -20,6 +20,7 @@ from .advanced_types import (
     PointFieldInputType,
     PointFieldType,
     PolygonFieldType,
+    ZonedDateTimeType,
 )
 from .converter import MongoEngineConversionError, convert_mongoengine_field
 from .registry import get_global_registry
@@ -31,6 +32,24 @@ from .utils import (
     get_related_field_filter_args,
     get_select_related_paths,
 )
+
+import datetime as _datetime
+
+_UTC = _datetime.timezone.utc
+
+
+def _to_utc(value):
+    """Normalise a datetime (or list of datetimes) to UTC.
+
+    Used by _hydrate_args to rewrite ZonedDateTimeField filter values before
+    they are passed to MongoEngine. Handles the in/nin/all list case as well as
+    single values, and assumes UTC when the value has no tzinfo.
+    """
+    if isinstance(value, list):
+        return [_to_utc(v) for v in value]
+    if value.tzinfo is None:
+        value = value.replace(tzinfo=_UTC)
+    return value.astimezone(_UTC)
 
 
 class BaseMongoengineConnectionField(ConnectionField):
@@ -218,8 +237,8 @@ class BaseMongoengineConnectionField(ConnectionField):
                     FileFieldType,
                     PointFieldType,
                     MultiPolygonFieldType,
-                    graphene.Union,
                     PolygonFieldType,
+                    graphene.Union,
                 ),
             ):
                 return False
@@ -242,9 +261,17 @@ class BaseMongoengineConnectionField(ConnectionField):
         def get_filter_type(_type):
             if isinstance(_type, Structure):
                 return get_filter_type(_type.of_type)
+            if _type is ZonedDateTimeType:
+                return graphene.DateTime()
             return _type()
 
-        return {k: get_filter_type(v.type) for k, v in items if is_filterable(k)}
+        return {
+            k: ft
+            for k, v in items
+            if is_filterable(k)
+            for ft in [get_filter_type(v.type)]
+            if ft is not None
+        }
 
     @property
     def field_args(self):
@@ -275,18 +302,18 @@ class BaseMongoengineConnectionField(ConnectionField):
         if self._type._meta.filter_fields:
             for field, filter_collection in self._type._meta.filter_fields.items():
                 for each in filter_collection:
-                    if str(self._type._meta.fields[field].type) in (
-                        "PointFieldType",
-                        "PointFieldType!",
-                    ):
+                    field_type_str = str(self._type._meta.fields[field].type)
+                    if field_type_str in ("PointFieldType", "PointFieldType!"):
                         if each == "max_distance":
                             filter_type = graphene.Int
                         else:
                             filter_type = PointFieldInputType
+                    elif field_type_str in ("ZonedDateTimeType", "ZonedDateTimeType!"):
+                        filter_type = graphene.DateTime
                     else:
                         filter_type = getattr(
                             graphene,
-                            str(self._type._meta.fields[field].type).replace("!", ""),
+                            field_type_str.replace("!", ""),
                         )
                     advanced_filter_types = {
                         "in": graphene.List(filter_type),
@@ -420,6 +447,27 @@ class BaseMongoengineConnectionField(ConnectionField):
                 hydrated[arg_name] = location["coordinates"]
                 if (arg_name.split("__")[0] + "__max_distance") not in args:
                     hydrated[arg_name.split("__")[0] + "__max_distance"] = 10000
+            elif (
+                arg_name in self.model._fields_ordered
+                and isinstance(
+                    getattr(self.model, arg_name), mongoengine.ZonedDateTimeField
+                )
+            ):
+                # ZonedDateTimeField stores {"utc": datetime, "tz": str}.
+                # Rewrite bare field filter to compare against the utc subfield.
+                hydrated[arg_name + "__utc"] = _to_utc(args.pop(arg_name))
+            elif "__" in arg_name:
+                # Handle operator suffixes e.g. start_time__gte, start_time__lte,
+                # start_time__in (list), etc.
+                field_name, _, op = arg_name.partition("__")
+                if (
+                    field_name in self.model._fields_ordered
+                    and isinstance(
+                        getattr(self.model, field_name), mongoengine.ZonedDateTimeField
+                    )
+                ):
+                    value = args.pop(arg_name)
+                    hydrated[field_name + "__utc__" + op] = _to_utc(value)
             elif arg_name == "id":
                 hydrated["id"] = from_global_id(args.pop("id", None))[1]
         args.update(hydrated)

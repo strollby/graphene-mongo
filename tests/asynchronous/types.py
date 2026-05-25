@@ -91,3 +91,64 @@ class ChildAsyncUnionType(Union):
     class Meta:
         types = (ChildAsyncType, AnotherChildAsyncType)
         interfaces = (ParentAsyncInterface,)
+
+
+# Deep select_related stress-test types
+class DeepL10AsyncType(AsyncMongoengineObjectType):
+    class Meta:
+        model = models.DeepL10
+        registry = local_async_registry
+
+
+class DeepL9AsyncType(AsyncMongoengineObjectType):
+    class Meta:
+        model = models.DeepL9
+        registry = local_async_registry
+
+
+class DeepL8AsyncType(AsyncMongoengineObjectType):
+    class Meta:
+        model = models.DeepL8
+        registry = local_async_registry
+
+
+class DeepL7AsyncType(AsyncMongoengineObjectType):
+    class Meta:
+        model = models.DeepL7
+        registry = local_async_registry
+
+
+class DeepL6AsyncType(AsyncMongoengineObjectType):
+    class Meta:
+        model = models.DeepL6
+        registry = local_async_registry
+
+
+class DeepL5AsyncType(AsyncMongoengineObjectType):
+    class Meta:
+        model = models.DeepL5
+        registry = local_async_registry
+
+
+class DeepL4AsyncType(AsyncMongoengineObjectType):
+    class Meta:
+        model = models.DeepL4
+        registry = local_async_registry
+
+
+class DeepL3AsyncType(AsyncMongoengineObjectType):
+    class Meta:
+        model = models.DeepL3
+        registry = local_async_registry
+
+
+class DeepL2AsyncType(AsyncMongoengineObjectType):
+    class Meta:
+        model = models.DeepL2
+        registry = local_async_registry
+
+
+class DeepL1AsyncType(AsyncMongoengineObjectType):
+    class Meta:
+        model = models.DeepL1
+        registry = local_async_registry

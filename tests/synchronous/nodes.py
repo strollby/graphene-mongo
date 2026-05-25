@@ -106,3 +106,89 @@ class FooNode(MongoengineObjectType):
     class Meta:
         model = models.Foo
         interfaces = (Node,)
+
+
+# Deep select_related stress-test nodes
+class DeepL10Node(MongoengineObjectType):
+    class Meta:
+        model = models.DeepL10
+        interfaces = (Node,)
+
+
+class DeepL9Node(MongoengineObjectType):
+    class Meta:
+        model = models.DeepL9
+        interfaces = (Node,)
+
+
+class DeepL8Node(MongoengineObjectType):
+    class Meta:
+        model = models.DeepL8
+        interfaces = (Node,)
+
+
+class DeepL7Node(MongoengineObjectType):
+    class Meta:
+        model = models.DeepL7
+        interfaces = (Node,)
+
+
+class DeepL6Node(MongoengineObjectType):
+    class Meta:
+        model = models.DeepL6
+        interfaces = (Node,)
+
+
+class DeepL5Node(MongoengineObjectType):
+    class Meta:
+        model = models.DeepL5
+        interfaces = (Node,)
+
+
+class DeepL4Node(MongoengineObjectType):
+    class Meta:
+        model = models.DeepL4
+        interfaces = (Node,)
+
+
+class DeepL3Node(MongoengineObjectType):
+    class Meta:
+        model = models.DeepL3
+        interfaces = (Node,)
+
+
+class DeepL2Node(MongoengineObjectType):
+    class Meta:
+        model = models.DeepL2
+        interfaces = (Node,)
+
+
+class DeepL1Node(MongoengineObjectType):
+    class Meta:
+        model = models.DeepL1
+        interfaces = (Node,)
+
+
+class BenchNode(MongoengineObjectType):
+    class Meta:
+        model = models.Bench
+        interfaces = (Node,)
+
+
+class ExamNode(MongoengineObjectType):
+    class Meta:
+        model = models.Exam
+        interfaces = (Node,)
+
+
+class SchoolClassNode(MongoengineObjectType):
+    class Meta:
+        model = models.SchoolClass
+        interfaces = (Node,)
+        only_fields = ("allowed_grades", "subjects")
+
+
+class EventNode(MongoengineObjectType):
+    class Meta:
+        model = models.Event
+        interfaces = (Node,)

@@ -1,16 +1,12 @@
 Asynchronous
 ============
 
-Async mode requires both a standard MongoEngine connection (for schema
-introspection) and an async Motor connection (for queries):
-
 1. Connect to MongoDB
 ---------------------
 
 .. code:: python
 
     import mongoengine
-    mongoengine.connect("mydb")
     mongoengine.async_connect("mydb")
 
 2. Define a document
@@ -79,7 +75,6 @@ Full example
     from graphene.relay import Node
     from graphene_mongo import AsyncMongoengineObjectType, AsyncMongoengineConnectionField
 
-    mongoengine.connect("mydb")
     mongoengine.async_connect("mydb")
 
     class Article(mongoengine.Document):

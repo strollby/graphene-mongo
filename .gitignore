@@ -11,4 +11,5 @@ htmlcov/
 *.swo
 *.swp
 venv/
+.venv/
 .vscode/

@@ -1,37 +1,19 @@
-import json
-import falcon
-from .schema import schema
+from schema import schema
 
 
-def set_graphql_allow_header(req: falcon.Request, resp: falcon.Response, resource: object):
-    resp.set_header("Allow", "GET, POST, OPTIONS")
-
-
-class HelloWorldResource:
-    def on_get(self, req, resp):
-        name = "Hello World!"
-        resp.status = falcon.HTTP_200
-        resp.body = json.dumps({"respone": name, "status": resp.status})
-
-    def on_post(self, req, resp):
-        pass
-
-
-@falcon.after(set_graphql_allow_header)
 class GraphQLResource:
-    def on_get(self, req, resp):
-        query = req.params["query"]
+    async def on_get(self, req, resp):
+        query = req.params.get("query")
         result = await schema.execute_async(query)
+        errors = [{"message": str(e)} for e in result.errors] if result.errors else None
+        resp.media = {"data": result.data, "errors": errors}
 
-        if result.data:
-            data_ret = {"data": result.data}
-            resp.status = falcon.HTTP_200
-            resp.body = json.dumps(data_ret, separators=(",", ":"))
-
-    def on_post(self, req, resp):
-        query = req.params["query"]
-        result = await schema.execute_async(query)
-        if result.data:
-            data_ret = {"data": result.data}
-            resp.status = falcon.HTTP_200
-            resp.body = json.dumps(data_ret, separators=(",", ":"))
+    async def on_post(self, req, resp):
+        body = await req.get_media()
+        result = await schema.execute_async(
+            body.get("query"),
+            variable_values=body.get("variables"),
+            operation_name=body.get("operationName"),
+        )
+        errors = [{"message": str(e)} for e in result.errors] if result.errors else None
+        resp.media = {"data": result.data, "errors": errors}

@@ -2,7 +2,6 @@ import mongoengine
 from graphene.test import Client
 
 from examples.falcon_mongoengine.schema import schema
-from .fixtures import fixtures_data
 
 mongoengine.connect("graphene-mongo-test", host="mongomock://localhost", alias="default")
 

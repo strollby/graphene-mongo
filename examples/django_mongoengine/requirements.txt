@@ -1,7 +1,0 @@
-Django==4.2.22
-pytest==4.6.3
-pytest-django==3.5.1
-mongoengine==0.27.0
-mongomock==3.16.0
-graphene-django==2.4.0
-graphene-mongo

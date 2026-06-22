@@ -11,25 +11,23 @@ clean:
 	@find . -name "__pycache__" -delete
 
 lint:
-	@ruff check graphene_mongo
-	@ruff format . --check
+	@uv run ruff check graphene_mongo
+	@uv run ruff format . --check
 
 test: clean
-	pytest graphene_mongo/tests --cov=graphene_mongo --cov-report=html --cov-report=term
+	uv run pytest tests --cov=graphene_mongo --cov-report=html --cov-report=term
 
 register-pypitest:
 	#python setup.py register -r pypitest
 
 deploy-pypitest: clean
-	poetry build
-	#poetry publish --repository testpypi
+	uv build
 	twine upload --repository testpypi dist/*
 
 register:
 	#python setup.py register -r pypi
 
 deploy: clean
-	poetry build
+	uv build
 	twine upload dist/*
-	#poetry publish
 

@@ -1,0 +1,21 @@
+[project]
+name = "graphene-mongo-flask-example"
+version = "0.1.0"
+requires-python = ">=3.10"
+dependencies = [
+    "Flask>=3.0.0",
+    "graphene-mongo",
+    "mongoengine",
+    "mongomock>=4.1.2",
+]
+
+[tool.uv.sources]
+graphene-mongo = { path = "../.." }
+mongoengine = { git = "https://github.com/strollby/mongoengine", rev = "v0.30.0-alpha.6" }
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"

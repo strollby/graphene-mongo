@@ -1,48 +1,21 @@
 from database import init_db
-from flask import Flask
-from flask_graphql import GraphQLView
+from flask import Flask, jsonify, request
 from schema import schema
 
 app = Flask(__name__)
-app.debug = True
 
-default_query = """
-{
-  allEmployees {
-    edges {
-      node {
-        id,
-        name,
-        department {
-          id,
-          name
-        },
-        roles {
-          edges {
-            node {
-              id,
-              name
-            }
-          }
-        },
-        leader {
-          id,
-          name
-        }
-        tasks {
-          edges {
-            node {
-              name,
-              deadline
-            }
-          }
-        }
-      }
-    }
-  }
-}""".strip()
 
-app.add_url_rule("/graphql", view_func=GraphQLView.as_view("graphql", schema=schema, graphiql=True))
+@app.post("/graphql")
+async def graphql_view():
+    body = request.get_json()
+    result = await schema.execute_async(
+        body["query"],
+        variable_values=body.get("variables"),
+        operation_name=body.get("operationName"),
+    )
+    errors = [{"message": str(e)} for e in result.errors] if result.errors else None
+    return jsonify({"data": result.data, "errors": errors})
+
 
 if __name__ == "__main__":
     init_db()

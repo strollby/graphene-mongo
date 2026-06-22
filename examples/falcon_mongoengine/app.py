@@ -1,12 +1,17 @@
-import falcon
-from mongoengine import connect
-from .api import GraphQLResource, HelloWorldResource
+import mongoengine
+import falcon.asgi
 
-connect("bookmarks_db", host="127.0.0.1", port=27017)
-app = application = falcon.API()
+from api import GraphQLResource
 
-helloWorld = HelloWorldResource()
-graphQL = GraphQLResource()
 
-app.add_route("/", helloWorld)
-app.add_route("/graphql", graphQL)
+class MongoLifespan:
+    async def process_startup(self, scope, event):
+        mongoengine.connect("bookmarks_db")
+        await mongoengine.async_connect("bookmarks_db")
+
+    async def process_shutdown(self, scope, event):
+        mongoengine.disconnect()
+
+
+app = falcon.asgi.App(middleware=[MongoLifespan()])
+app.add_route("/graphql", GraphQLResource())

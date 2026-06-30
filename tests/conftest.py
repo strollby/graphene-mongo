@@ -1,46 +1,11 @@
+import os
 from collections.abc import AsyncGenerator
 from datetime import datetime
-import os
 from typing import Any
 
 import mongoengine
-from mongomock import gridfs
 import pytest
-
-from .models import (
-    AnotherChild,
-    Article,
-    Bench,
-    CellTower,
-    Child,
-    ChildRegisteredAfter,
-    ChildRegisteredBefore,
-    DeepL1,
-    DeepL2,
-    DeepL3,
-    DeepL4,
-    DeepL5,
-    DeepL6,
-    DeepL7,
-    DeepL8,
-    DeepL9,
-    DeepL10,
-    DeepEmbedWithRef,
-    DeepNestedEmbed,
-    Editor,
-    EmbeddedArticle,
-    Event,
-    Exam,
-    GradeEnum,
-    ParentWithRelationship,
-    Player,
-    ProfessorMetadata,
-    ProfessorVector,
-    Publisher,
-    Reporter,
-    School,
-    SchoolClass,
-)
+from mongomock import gridfs
 
 current_dirname = os.path.dirname(os.path.abspath(__file__))
 DB_NAME = "graphene-mongo-test" + (os.environ.get("TOX_ENV_NAME") or "").lower()
@@ -53,6 +18,41 @@ def fixtures_dirname():
 
 @pytest.fixture(scope="module")
 def fixtures():
+    from .models import (
+        AnotherChild,
+        Article,
+        Bench,
+        CellTower,
+        Child,
+        ChildRegisteredAfter,
+        ChildRegisteredBefore,
+        DeepEmbedWithRef,
+        DeepL1,
+        DeepL2,
+        DeepL3,
+        DeepL4,
+        DeepL5,
+        DeepL6,
+        DeepL7,
+        DeepL8,
+        DeepL9,
+        DeepL10,
+        DeepNestedEmbed,
+        Editor,
+        EmbeddedArticle,
+        Event,
+        Exam,
+        GradeEnum,
+        ParentWithRelationship,
+        Player,
+        ProfessorMetadata,
+        ProfessorVector,
+        Publisher,
+        Reporter,
+        School,
+        SchoolClass,
+    )
+
     Publisher.drop_collection()
     publisher1 = Publisher(name="Newsco")
     publisher1.save()
@@ -281,8 +281,8 @@ def fixtures():
 
     # AwareDateTimeField model
     Event.drop_collection()
-    from zoneinfo import ZoneInfo
     import datetime as _dt
+    from zoneinfo import ZoneInfo
 
     Event(
         name="Kolkata Summit",

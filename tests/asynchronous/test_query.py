@@ -71,7 +71,9 @@ async def test_should_query_editor(fixtures, fixtures_dirname):
     metadata = result.data["editor"].pop("metadata")
     assert json.loads(metadata) == expected_metadata
     assert result.data == expected
-    assert count == 4  # 1 first editor (company pre-fetched via select_related) + 2 GridFS reads (files+chunks) + 1 all editors
+    assert (
+        count == 4
+    )  # 1 first editor (company pre-fetched via select_related) + 2 GridFS reads (files+chunks) + 1 all editors
 
 
 async def test_should_query_reporter(fixtures):
@@ -194,7 +196,9 @@ async def test_should_self_reference(fixtures):
     result, count = await execute_count(schema, query)
     assert not result.errors
     assert result.data == expected
-    assert count == 1  # 1 select_related aggregate (opponent + players all pre-fetched via select_related)
+    assert (
+        count == 1
+    )  # 1 select_related aggregate (opponent + players all pre-fetched via select_related)
 
 
 async def test_should_query_with_embedded_document(fixtures):
@@ -416,6 +420,7 @@ async def test_should_query_cell_tower(fixtures):
     assert not result.errors
     assert result.data == expected
     assert count == 1
+
 
 async def test_should_query_aware_datetime(fixtures):
     from .nodes import EventAsyncNode

@@ -220,9 +220,7 @@ class AsyncMongoengineConnectionField(MongoengineConnectionField):
                     items = await _base_query.limit(limit)
                     has_next_page = (
                         (
-                            len(
-                                await _base_query.skip(skip + limit).only("id").limit(1).to_list()
-                            )
+                            len(await _base_query.skip(skip + limit).only("id").limit(1).to_list())
                             != 0
                         )
                         if requires_page_info

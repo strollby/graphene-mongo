@@ -1,6 +1,9 @@
 from graphene.types.union import Union
 
-from graphene_mongo.asynchronous.types import AsyncMongoengineInterfaceType, AsyncMongoengineObjectType
+from graphene_mongo.asynchronous.types import (
+    AsyncMongoengineInterfaceType,
+    AsyncMongoengineObjectType,
+)
 from graphene_mongo.base.registry import Registry
 from graphene_mongo.base.utils import ExecutorEnum
 

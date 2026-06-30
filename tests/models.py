@@ -207,6 +207,7 @@ class School(mongoengine.Document):
 # Deep select_related stress-test models — 10-level reference chain
 # ---------------------------------------------------------------------------
 
+
 class DeepL10(mongoengine.Document):
     meta = {"collection": "test_deep_l10"}
     name = mongoengine.StringField()
@@ -225,7 +226,9 @@ class DeepL8(mongoengine.Document):
     # list of references at level 8 → level 10
     extras = mongoengine.ListField(mongoengine.ReferenceField(DeepL10))
     # list of generic references — scenario 1
-    generic_refs = mongoengine.ListField(mongoengine.GenericReferenceField(choices=[DeepL9, DeepL10]))
+    generic_refs = mongoengine.ListField(
+        mongoengine.GenericReferenceField(choices=[DeepL9, DeepL10])
+    )
 
 
 class DeepNestedEmbed(mongoengine.EmbeddedDocument):

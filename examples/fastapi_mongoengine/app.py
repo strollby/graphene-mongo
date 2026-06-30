@@ -29,10 +29,10 @@ GRAPHQL_PLAYGROUND = """<!DOCTYPE html>
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     mongoengine.connect("library_db")
-    await mongoengine.async_connect("library_db")
+    mongoengine.async_connect("library_db")
     init_db()
     yield
-    mongoengine.disconnect()
+    await mongoengine.disconnect()
 
 
 app = FastAPI(title="Library GraphQL API", lifespan=lifespan)

@@ -3,8 +3,10 @@ import pytest
 
 @pytest.mark.asyncio
 async def test_query_all_books(client):
-    response = await client.post("/graphql", json={
-        "query": """
+    response = await client.post(
+        "/graphql",
+        json={
+            "query": """
             query {
                 books {
                     edges {
@@ -17,7 +19,8 @@ async def test_query_all_books(client):
                 }
             }
         """
-    })
+        },
+    )
     assert response.status_code == 200
     data = response.json()
     assert not data["errors"]
@@ -28,9 +31,9 @@ async def test_query_all_books(client):
 
 @pytest.mark.asyncio
 async def test_query_books_paginated(client):
-    response = await client.post("/graphql", json={
-        "query": "{ books(first: 2) { edges { node { title } } } }"
-    })
+    response = await client.post(
+        "/graphql", json={"query": "{ books(first: 2) { edges { node { title } } } }"}
+    )
     assert response.status_code == 200
     data = response.json()
     assert not data["errors"]
@@ -39,9 +42,9 @@ async def test_query_books_paginated(client):
 
 @pytest.mark.asyncio
 async def test_query_books_filter_genre(client):
-    response = await client.post("/graphql", json={
-        "query": '{ books(genre: "Dystopian") { edges { node { title } } } }'
-    })
+    response = await client.post(
+        "/graphql", json={"query": '{ books(genre: "Dystopian") { edges { node { title } } } }'}
+    )
     assert response.status_code == 200
     data = response.json()
     assert not data["errors"]
@@ -53,9 +56,9 @@ async def test_query_books_filter_genre(client):
 
 @pytest.mark.asyncio
 async def test_query_authors(client):
-    response = await client.post("/graphql", json={
-        "query": "{ authors { edges { node { name nationality } } } }"
-    })
+    response = await client.post(
+        "/graphql", json={"query": "{ authors { edges { node { name nationality } } } }"}
+    )
     assert response.status_code == 200
     data = response.json()
     assert not data["errors"]
@@ -67,29 +70,32 @@ async def test_query_authors(client):
 @pytest.mark.asyncio
 async def test_create_and_delete_book(client):
     # Create
-    response = await client.post("/graphql", json={
-        "query": """
+    response = await client.post(
+        "/graphql",
+        json={
+            "query": """
             mutation {
                 createBook(title: "Test Book", genre: "Fiction", publishedYear: 2024) {
                     book { title genre }
                 }
             }
         """
-    })
+        },
+    )
     assert response.status_code == 200
     data = response.json()
     assert not data["errors"]
     assert data["data"]["createBook"]["book"]["title"] == "Test Book"
 
     # Fetch ID for delete
-    response = await client.post("/graphql", json={
-        "query": '{ books(title: "Test Book") { edges { node { id title } } } }'
-    })
+    response = await client.post(
+        "/graphql", json={"query": '{ books(title: "Test Book") { edges { node { id title } } } }'}
+    )
     book_id = response.json()["data"]["books"]["edges"][0]["node"]["id"]
 
     # Delete
-    response = await client.post("/graphql", json={
-        "query": f'mutation {{ deleteBook(id: "{book_id}") {{ success }} }}'
-    })
+    response = await client.post(
+        "/graphql", json={"query": f'mutation {{ deleteBook(id: "{book_id}") {{ success }} }}'}
+    )
     assert response.status_code == 200
     assert response.json()["data"]["deleteBook"]["success"] is True

@@ -173,7 +173,9 @@ def convert_file_to_field(field, registry=None, executor: ExecutorEnum = Executo
 
 
 @convert_mongoengine_field.register(mongoengine.AwareDateTimeField)
-def convert_aware_datetime_to_field(field, registry=None, executor: ExecutorEnum = ExecutorEnum.SYNC):
+def convert_aware_datetime_to_field(
+    field, registry=None, executor: ExecutorEnum = ExecutorEnum.SYNC
+):
     """Convert AwareDateTimeField → AwareDateTimeScalar (RFC 9557 IXDTF).
 
     Serialises to "2024-05-16T12:00:00+09:00[Asia/Tokyo]" — local wall-clock
@@ -228,7 +230,7 @@ def convert_field_to_list(field, registry=None, executor: ExecutorEnum = Executo
     # Non-relationship field
     relations = (mongoengine.ReferenceField, mongoengine.EmbeddedDocumentField)
     if not isinstance(base_type, (graphene.List, graphene.NonNull)) and not isinstance(
-            field.field, relations
+        field.field, relations
     ):
         base_type = type(base_type)
 

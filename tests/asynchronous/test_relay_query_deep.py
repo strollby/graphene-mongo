@@ -341,7 +341,9 @@ async def test_deep_list_at_depth_8(fixtures, deep_schema):
     """
     result, count = await execute_count(deep_schema, query)
     assert not result.errors, result.errors
-    l8 = result.data["deepChain"]["edges"][0]["node"]["child"]["child"]["child"]["child"]["child"]["child"]["child"]
+    l8 = result.data["deepChain"]["edges"][0]["node"]["child"]["child"]["child"]["child"]["child"][
+        "child"
+    ]["child"]
     assert l8["name"] == "L8"
     extra_nodes = [e["node"] for e in l8["extras"]["edges"]]
     assert {e["name"] for e in extra_nodes} == {"L10-B", "L10-C"}
@@ -377,7 +379,9 @@ async def test_deep_embedded_doc_with_refs(fixtures, deep_schema):
     """
     result, count = await execute_count(deep_schema, query)
     assert not result.errors, result.errors
-    l7 = result.data["deepChain"]["edges"][0]["node"]["child"]["child"]["child"]["child"]["child"]["child"]
+    l7 = result.data["deepChain"]["edges"][0]["node"]["child"]["child"]["child"]["child"]["child"][
+        "child"
+    ]
     assert l7["name"] == "L7"
     embed = l7["embed"]
     assert embed["label"] == "embed-single"
@@ -414,7 +418,9 @@ async def test_deep_embedded_doc_list_with_refs(fixtures, deep_schema):
     """
     result, count = await execute_count(deep_schema, query)
     assert not result.errors, result.errors
-    l7 = result.data["deepChain"]["edges"][0]["node"]["child"]["child"]["child"]["child"]["child"]["child"]
+    l7 = result.data["deepChain"]["edges"][0]["node"]["child"]["child"]["child"]["child"]["child"][
+        "child"
+    ]
     assert l7["name"] == "L7"
     embeds = l7["embeds"]
     assert len(embeds) == 2
@@ -450,7 +456,9 @@ async def test_deep_list_of_generic_references(fixtures, deep_schema):
     """
     result, count = await execute_count(deep_schema, query)
     assert not result.errors, result.errors
-    l8 = result.data["deepChain"]["edges"][0]["node"]["child"]["child"]["child"]["child"]["child"]["child"]["child"]
+    l8 = result.data["deepChain"]["edges"][0]["node"]["child"]["child"]["child"]["child"]["child"][
+        "child"
+    ]["child"]
     assert l8["name"] == "L8"
     generic_refs = l8["genericRefs"]
     assert len(generic_refs) == 2
@@ -487,7 +495,9 @@ async def test_deep_embed_list_refs(fixtures, deep_schema):
     """
     result, count = await execute_count(deep_schema, query)
     assert not result.errors, result.errors
-    l7 = result.data["deepChain"]["edges"][0]["node"]["child"]["child"]["child"]["child"]["child"]["child"]
+    l7 = result.data["deepChain"]["edges"][0]["node"]["child"]["child"]["child"]["child"]["child"][
+        "child"
+    ]
     assert l7["name"] == "L7"
     embed = l7["embed"]
     assert embed["label"] == "embed-single"
@@ -520,7 +530,9 @@ async def test_deep_nested_embed_ref(fixtures, deep_schema):
     """
     result, count = await execute_count(deep_schema, query)
     assert not result.errors, result.errors
-    l7 = result.data["deepChain"]["edges"][0]["node"]["child"]["child"]["child"]["child"]["child"]["child"]
+    l7 = result.data["deepChain"]["edges"][0]["node"]["child"]["child"]["child"]["child"]["child"][
+        "child"
+    ]
     assert l7["name"] == "L7"
     embed = l7["embed"]
     assert embed["label"] == "embed-single"

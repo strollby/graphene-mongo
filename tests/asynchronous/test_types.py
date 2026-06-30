@@ -15,7 +15,10 @@ from ..models import (
     Student,
 )
 from .utils import with_local_async_registry
-from graphene_mongo.asynchronous.types import AsyncMongoengineObjectType, AsyncMongoengineObjectTypeOptions
+from graphene_mongo.asynchronous.types import (
+    AsyncMongoengineObjectType,
+    AsyncMongoengineObjectTypeOptions,
+)
 from graphene_mongo.base.registry import Registry
 from graphene_mongo.base.utils import ExecutorEnum
 
@@ -109,6 +112,7 @@ def test_object_type():
 
 def test_should_raise_if_no_model():
     with raises(Exception) as excinfo:
+
         class Human1(AsyncMongoengineObjectType):
             pass
 
@@ -117,6 +121,7 @@ def test_should_raise_if_no_model():
 
 def test_should_raise_if_model_is_invalid():
     with raises(Exception) as excinfo:
+
         class Human2(AsyncMongoengineObjectType):
             class Meta:
                 model = 1
@@ -169,6 +174,7 @@ def test_passing_meta_when_subclassing_mongoengine_objecttype():
             )
 
     with raises(Exception) as einfo:
+
         class A(TypeSubclassWithBadOptions):
             class Meta:
                 model = Article

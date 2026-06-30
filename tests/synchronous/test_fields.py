@@ -1,4 +1,3 @@
-
 from . import nodes
 from graphene_mongo.synchronous.fields import MongoengineConnectionField
 

@@ -17,7 +17,6 @@ import mongoengine
 from mongoengine.base.common import _DocumentRegistry
 
 
-
 class ExecutorEnum(enum.Enum):
     """Enumeration distinguishing synchronous from asynchronous field execution.
 
@@ -573,8 +572,12 @@ def get_related_field_filter_args(info, model) -> dict:
             if snake_name not in model._fields:
                 continue
             mongo_field = model._fields[snake_name]
-            inner = mongo_field.field if isinstance(mongo_field, mongoengine.ListField) else mongo_field
-            if not isinstance(inner, (mongoengine.ReferenceField, mongoengine.GenericReferenceField)):
+            inner = (
+                mongo_field.field if isinstance(mongo_field, mongoengine.ListField) else mongo_field
+            )
+            if not isinstance(
+                inner, (mongoengine.ReferenceField, mongoengine.GenericReferenceField)
+            ):
                 continue
             if not getattr(sel, "arguments", None):
                 continue
@@ -624,5 +627,3 @@ def get_field_resolver(
         return default_async_resolver
 
     return default_sync_resolver
-
-

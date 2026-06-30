@@ -250,9 +250,7 @@ class MongoengineConnectionField(BaseMongoengineConnectionField):
                                 db = mongoengine.get_db(self.model._meta["db_alias"])
                             else:
                                 db = mongoengine.get_db()
-                            count = db[self.model._get_collection_name()].count_documents(
-                                args_copy
-                            )
+                            count = db[self.model._get_collection_name()].count_documents(args_copy)
                         else:
                             count = self.model.objects(args_copy).count()
                     if not needs_count or count != 0:

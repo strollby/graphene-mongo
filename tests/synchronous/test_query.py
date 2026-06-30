@@ -483,7 +483,7 @@ def test_should_filter_aware_datetime_range(fixtures):
 
     # gte 2024-07-01 UTC → only NY Meetup (plain UTC offset, no IANA annotation)
     result = schema.execute(
-        '{ events(startTime_Gte: "2024-07-01T00:00:00+00:00") { edges { node { name } } } }'
+        '{ events(startTime_Gte: "2024-07-01T00:00:00+00:00[UTC]") { edges { node { name } } } }'
     )
     assert not result.errors, result.errors
     names = [e["node"]["name"] for e in result.data["events"]["edges"]]
@@ -491,7 +491,7 @@ def test_should_filter_aware_datetime_range(fixtures):
 
     # lte using IXDTF → only Kolkata Summit
     result = schema.execute(
-        '{ events(startTime_Lte: "2024-07-01T00:00:00+00:00") { edges { node { name } } } }'
+        '{ events(startTime_Lte: "2024-07-01T00:00:00+00:00[UTC]") { edges { node { name } } } }'
     )
     assert not result.errors, result.errors
     names = [e["node"]["name"] for e in result.data["events"]["edges"]]

@@ -312,3 +312,10 @@ class Event(mongoengine.Document):
     meta = {"collection": "test_event"}
     name = mongoengine.StringField(required=True)
     start_time = mongoengine.AwareDateTimeField()
+
+
+class FederatedReference(mongoengine.Document):
+    """Test model for federated references of node type"""
+
+    reference = mongoengine.ObjectIdField(required=False)
+    references = mongoengine.ListField(mongoengine.ObjectIdField(required=False))

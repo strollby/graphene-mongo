@@ -1,3 +1,4 @@
+import datetime as _datetime
 from collections import OrderedDict
 from functools import reduce
 
@@ -5,7 +6,7 @@ import bson
 import graphene
 import mongoengine
 from bson import ObjectId
-from graphene.relay import ConnectionField
+from graphene.relay import ConnectionField, is_node
 from graphene.types.argument import to_arguments
 from graphene.types.dynamic import Dynamic
 from graphene.types.structures import Structure
@@ -32,8 +33,6 @@ from .utils import (
     get_related_field_filter_args,
     get_select_related_paths,
 )
-
-import datetime as _datetime
 
 _UTC = _datetime.timezone.utc
 
@@ -178,9 +177,6 @@ class BaseMongoengineConnectionField(ConnectionField):
         extra_args = dict(
             dict(dict(_field_args, **_advance_args), **_filter_args), **_extended_args
         )
-        for arg_, type_ in extra_args.items():
-            if hasattr(type_, "is_type_of") and type_.is_type_of is None:
-                extra_args[arg_] = graphene.ID(description=type_._meta.description)
         for key in list(self._base_args.keys()):
             extra_args.pop(key, None)
         return to_arguments(self._base_args or OrderedDict(), extra_args)
@@ -262,17 +258,26 @@ class BaseMongoengineConnectionField(ConnectionField):
                 return False
             return True
 
-        def get_filter_type(_type):
+        def get_filter_type(_type, field_name):
             if isinstance(_type, Structure):
-                return get_filter_type(_type.of_type)
+                return get_filter_type(_type.of_type, field_name)
+
+            if is_node(_type):
+                # Allow federated node types to be added as filters
+                # This case occurs when user defines the field's external type manually within
+                # the AsyncMongoengineObjectType definition
+                return convert_mongoengine_field(
+                    getattr(self.model, field_name), self.registry, self.executor
+                )
+
             return _type()
 
         return {
-            k: ft
-            for k, v in items
-            if is_filterable(k)
-            for ft in [get_filter_type(v.type)]
-            if ft is not None
+            field_name: field_type
+            for field_name, gql_type in items
+            if is_filterable(field_name)
+            for field_type in [get_filter_type(gql_type.type, field_name)]
+            if field_type is not None
         }
 
     @property

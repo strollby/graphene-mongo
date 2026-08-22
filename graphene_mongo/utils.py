@@ -2,6 +2,7 @@ import enum
 import inspect
 from typing import Callable, Optional
 
+import mongoengine
 from graphene import Node
 from graphene.utils.str_converters import to_snake_case
 from graphene.utils.trim_docstring import trim_docstring
@@ -13,8 +14,7 @@ from graphql import (
     VariableNode,
 )
 from graphql_relay.connection.array_connection import offset_to_cursor
-import mongoengine
-from mongoengine.base.common import _DocumentRegistry
+from mongoengine.base import _DocumentRegistry
 
 
 class ExecutorEnum(enum.Enum):
@@ -52,7 +52,7 @@ def get_model_fields(model, excluding=None):
         excluding (list[str] | None): Field names to omit from the result.
 
     Returns:
-        dict[str, mongoengine.BaseField]: Alphabetically sorted mapping of
+        dict[str, mongoengineField]: Alphabetically sorted mapping of
         field name → MongoEngine field instance.
     """
     excluding = excluding or []

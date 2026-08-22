@@ -429,7 +429,7 @@ class BaseMongoengineConnectionField(ConnectionField):
         hydrated: dict = {}
         for arg_name, arg in args.copy().items():
             if arg_name in reference_fields and not isinstance(
-                arg, mongoengine.base.metaclasses.TopLevelDocumentMetaclass
+                arg, mongoengine.base.TopLevelDocumentMetaclass
             ):
                 try:
                     reference_obj = reference_fields[arg_name].document_type(

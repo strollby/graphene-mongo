@@ -20,8 +20,8 @@ from graphene_mongo.asynchronous.types import (
     AsyncMongoengineObjectType,
     AsyncMongoengineObjectTypeOptions,
 )
-from graphene_mongo.base.registry import Registry
-from graphene_mongo.base.utils import ExecutorEnum
+from graphene_mongo.registry import Registry
+from graphene_mongo.utils import ExecutorEnum
 
 # Use a private registry so module-level class definitions don't disturb the
 # global async registry (which holds the relay nodes used by other test modules).

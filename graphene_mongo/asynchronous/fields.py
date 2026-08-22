@@ -3,19 +3,18 @@ from itertools import filterfalse
 from typing import Coroutine
 
 import graphene
+import mongoengine
 from graphene import Context
 from graphene.relay import ConnectionField
 from graphql import GraphQLResolveInfo
 from graphql_relay import cursor_to_offset, from_global_id
-import mongoengine
 from mongoengine import AsyncQuerySet, QuerySet
 from promise import Promise
 from pymongo.errors import OperationFailure
 
-from ..synchronous.fields import MongoengineConnectionField
-from ..base.registry import get_global_async_registry
-
-from ..base.utils import (
+from graphene_mongo.registry import get_global_async_registry
+from graphene_mongo.synchronous.fields import MongoengineConnectionField
+from graphene_mongo.utils import (
     ExecutorEnum,
     connection_from_iterables,
     find_skip_and_limit,
@@ -367,7 +366,7 @@ class AsyncMongoengineConnectionField(MongoengineConnectionField):
 
         if not bool(args) or not is_partial:
             if isinstance(self.model, mongoengine.Document) or isinstance(
-                self.model, mongoengine.base.metaclasses.TopLevelDocumentMetaclass
+                self.model, mongoengine.base.TopLevelDocumentMetaclass
             ):
                 connection_fields = [
                     field

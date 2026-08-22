@@ -2,7 +2,7 @@ import graphene
 
 from .. import types
 from ..models import Article, Child, Player, Reporter
-from graphene_mongo.base.utils import (
+from graphene_mongo.utils import (
     get_model_fields,
     get_query_fields,
     get_select_related_paths,

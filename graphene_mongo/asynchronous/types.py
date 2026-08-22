@@ -2,11 +2,11 @@ from graphene.types.interface import Interface, InterfaceOptions
 from graphene.types.objecttype import ObjectType, ObjectTypeOptions
 from graphene.utils.str_converters import to_snake_case
 
-from .fields import AsyncMongoengineConnectionField
-from ..base.registry import get_global_async_registry, get_inputs_async_registry
-from ..base.types import create_graphene_generic_class as _create
+from graphene_mongo.registry import get_global_async_registry, get_inputs_async_registry
+from graphene_mongo.types import create_graphene_generic_class as _create
+from graphene_mongo.utils import ExecutorEnum, get_query_fields, get_select_related_paths
 
-from ..base.utils import ExecutorEnum, get_query_fields, get_select_related_paths
+from .fields import AsyncMongoengineConnectionField
 
 
 def create_graphene_generic_class_async(object_type, option_type):

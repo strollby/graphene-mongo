@@ -1,16 +1,16 @@
 from functools import singledispatch
 
 import graphene
+import mongoengine
 from graphene.types.json import JSONString
 from graphene.utils.str_converters import to_camel_case
-import mongoengine
 
 from . import advanced_types
 from .utils import (
     ExecutorEnum,
+    get_document,
     get_field_description,
     get_field_is_required,
-    get_document,
 )
 
 

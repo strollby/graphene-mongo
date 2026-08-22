@@ -1740,7 +1740,7 @@ async def test_required_fields_always_projected(fixtures):
 def test_geo_near_filter_arg_exists():
     """filter_fields {"loc": ["near"]} generates a loc__near arg with PointFieldInputType."""
     from graphene_mongo.asynchronous.types import AsyncMongoengineObjectType
-    from graphene_mongo.base.advanced_types import PointFieldInputType
+    from graphene_mongo.advanced_types import PointFieldInputType
 
     class ChildGeoAsyncNode(AsyncMongoengineObjectType):
         class Meta:

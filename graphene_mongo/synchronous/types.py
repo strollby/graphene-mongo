@@ -3,13 +3,13 @@ from graphene.types.interface import Interface, InterfaceOptions
 from graphene.types.objecttype import ObjectType, ObjectTypeOptions
 from graphene.utils.str_converters import to_snake_case
 
-from .fields import MongoengineConnectionField
-from ..base.registry import get_global_registry, get_inputs_registry
-from ..base.types import (
+from graphene_mongo.registry import get_global_registry, get_inputs_registry
+from graphene_mongo.types import (
     create_graphene_generic_class as _create,
 )
+from graphene_mongo.utils import ExecutorEnum, get_query_fields, get_select_related_paths
 
-from ..base.utils import ExecutorEnum, get_query_fields, get_select_related_paths
+from .fields import MongoengineConnectionField
 
 
 def create_graphene_generic_class(object_type, option_type):

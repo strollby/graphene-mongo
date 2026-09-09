@@ -277,8 +277,7 @@ def create_graphene_generic_class(
 
             if _meta:
                 assert isinstance(_meta, MongoengineGenericObjectTypeOptions), (
-                    "_meta must be an instance of MongoengineGenericObjectTypeOptions, "
-                    "received {}"
+                    "_meta must be an instance of MongoengineGenericObjectTypeOptions, received {}"
                 ).format(_meta.__class__)
             else:
                 _meta = MongoengineGenericObjectTypeOptions(option_type)
@@ -347,16 +346,13 @@ def create_graphene_generic_class(
 
             Returns:
                 bool: True if *root* is compatible with this type.
-
-            Raises:
-                Exception: If *root* is not a valid MongoEngine model instance.
             """
             if isinstance(root, cls):
                 return True
             if isinstance(root, mongoengine.GridFSProxy):
                 return True
             if not is_valid_mongoengine_model(type(root)):
-                raise Exception(('Received incompatible instance "{}".').format(root))
+                return False
             return isinstance(root, cls._meta.model)
 
         def resolve_id(self, info):

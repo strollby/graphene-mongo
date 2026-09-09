@@ -1,8 +1,11 @@
 from graphene.types.union import Union
 
-from graphene_mongo.asynchronous.types import AsyncMongoengineInterfaceType, AsyncMongoengineObjectType
-from graphene_mongo.base.registry import Registry
-from graphene_mongo.base.utils import ExecutorEnum
+from graphene_mongo.asynchronous.types import (
+    AsyncMongoengineInterfaceType,
+    AsyncMongoengineObjectType,
+)
+from graphene_mongo.registry import Registry
+from graphene_mongo.utils import ExecutorEnum
 
 from .. import models
 from ..types import ArticleInput, EditorInput  # noqa: F401 — re-exported for convenience

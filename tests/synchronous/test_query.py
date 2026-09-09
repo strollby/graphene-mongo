@@ -71,7 +71,9 @@ def test_should_query_editor(fixtures, fixtures_dirname):
     metadata = result.data["editor"].pop("metadata")
     assert json.loads(metadata) == expected_metadata
     assert result.data == expected
-    assert count == 4  # 1 first editor (company pre-fetched via select_related) + 2 GridFS reads (files+chunks) + 1 all editors
+    assert (
+        count == 4
+    )  # 1 first editor (company pre-fetched via select_related) + 2 GridFS reads (files+chunks) + 1 all editors
 
 
 def test_should_query_reporter(fixtures):
@@ -194,7 +196,9 @@ def test_should_self_reference(fixtures):
     result, count = execute_count(schema, query)
     assert not result.errors
     assert result.data == expected
-    assert count == 1  # 1 select_related aggregate (opponent + players all pre-fetched via select_related)
+    assert (
+        count == 1
+    )  # 1 select_related aggregate (opponent + players all pre-fetched via select_related)
 
 
 def test_should_query_with_embedded_document(fixtures):
@@ -421,6 +425,7 @@ def test_should_query_cell_tower(fixtures):
     assert result.data == expected
     assert count == 1
 
+
 def test_should_query_aware_datetime(fixtures):
     from .nodes import EventNode
     from graphene_mongo.synchronous.fields import MongoengineConnectionField
@@ -478,7 +483,7 @@ def test_should_filter_aware_datetime_range(fixtures):
 
     # gte 2024-07-01 UTC → only NY Meetup (plain UTC offset, no IANA annotation)
     result = schema.execute(
-        '{ events(startTime_Gte: "2024-07-01T00:00:00+00:00") { edges { node { name } } } }'
+        '{ events(startTime_Gte: "2024-07-01T00:00:00+00:00[UTC]") { edges { node { name } } } }'
     )
     assert not result.errors, result.errors
     names = [e["node"]["name"] for e in result.data["events"]["edges"]]
@@ -486,7 +491,7 @@ def test_should_filter_aware_datetime_range(fixtures):
 
     # lte using IXDTF → only Kolkata Summit
     result = schema.execute(
-        '{ events(startTime_Lte: "2024-07-01T00:00:00+00:00") { edges { node { name } } } }'
+        '{ events(startTime_Lte: "2024-07-01T00:00:00+00:00[UTC]") { edges { node { name } } } }'
     )
     assert not result.errors, result.errors
     names = [e["node"]["name"] for e in result.data["events"]["edges"]]

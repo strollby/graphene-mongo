@@ -40,6 +40,7 @@ class CreateBookMutation(graphene.Mutation):
 
     async def mutate(self, info, title, published_year=None, genre=None, author_id=None, tags=None):
         from graphql_relay import from_global_id
+
         author = None
         if author_id:
             author = await AuthorModel.aobjects.get(pk=from_global_id(author_id)[1])
@@ -62,6 +63,7 @@ class DeleteBookMutation(graphene.Mutation):
 
     async def mutate(self, info, id):
         from graphql_relay import from_global_id
+
         try:
             book = await BookModel.aobjects.get(pk=from_global_id(id)[1])
             await book.adelete()

@@ -1,7 +1,7 @@
 import graphene
 
 from graphene_mongo import registry
-from graphene_mongo.base.converter import convert_mongoengine_field
+from graphene_mongo.converter import convert_mongoengine_field
 from graphene_mongo.asynchronous.fields import AsyncMongoengineConnectionField
 from graphene_mongo.asynchronous.types import AsyncMongoengineObjectType
 

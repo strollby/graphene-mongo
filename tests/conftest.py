@@ -283,6 +283,7 @@ def fixtures():
     Event.drop_collection()
     from zoneinfo import ZoneInfo
     import datetime as _dt
+
     Event(
         name="Kolkata Summit",
         start_time=_dt.datetime(2024, 6, 15, 14, 30, tzinfo=ZoneInfo("Asia/Kolkata")),
@@ -304,4 +305,4 @@ async def setup() -> AsyncGenerator[None, Any]:
 
     host = os.environ.get("MONGODB_URI", "mongodb://localhost:27017")
     mongoengine.connect(DB_NAME, host=host)
-    await mongoengine.async_connect(DB_NAME, host=host)
+    mongoengine.async_connect(DB_NAME, host=host)

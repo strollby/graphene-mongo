@@ -13,9 +13,8 @@ from mongoengine import QuerySet
 from promise import Promise
 from pymongo.errors import OperationFailure
 
-from ..base.fields import BaseMongoengineConnectionField
-
-from ..base.utils import (
+from graphene_mongo.fields import BaseMongoengineConnectionField
+from graphene_mongo.utils import (
     ExecutorEnum,
     connection_from_iterables,
     find_skip_and_limit,
@@ -250,9 +249,7 @@ class MongoengineConnectionField(BaseMongoengineConnectionField):
                                 db = mongoengine.get_db(self.model._meta["db_alias"])
                             else:
                                 db = mongoengine.get_db()
-                            count = db[self.model._get_collection_name()].count_documents(
-                                args_copy
-                            )
+                            count = db[self.model._get_collection_name()].count_documents(args_copy)
                         else:
                             count = self.model.objects(args_copy).count()
                     if not needs_count or count != 0:
@@ -345,7 +342,7 @@ class MongoengineConnectionField(BaseMongoengineConnectionField):
 
         if not bool(args) or not is_partial:
             if isinstance(self.model, mongoengine.Document) or isinstance(
-                self.model, mongoengine.base.metaclasses.TopLevelDocumentMetaclass
+                self.model, mongoengine.base.TopLevelDocumentMetaclass
             ):
                 connection_fields = [
                     field

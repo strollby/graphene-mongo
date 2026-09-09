@@ -10,6 +10,9 @@ clean:
 	@find . -name "*.swp" -delete
 	@find . -name "__pycache__" -delete
 
+setup:
+	@uv sync --all-extras --all-groups
+
 lint:
 	@uv run ruff check graphene_mongo
 	@uv run ruff format . --check

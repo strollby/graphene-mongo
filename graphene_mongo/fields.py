@@ -1,3 +1,4 @@
+import datetime as _datetime
 from collections import OrderedDict
 from functools import reduce
 
@@ -5,7 +6,7 @@ import bson
 import graphene
 import mongoengine
 from bson import ObjectId
-from graphene.relay import ConnectionField
+from graphene.relay import ConnectionField, is_node
 from graphene.types.argument import to_arguments
 from graphene.types.dynamic import Dynamic
 from graphene.types.structures import Structure
@@ -32,8 +33,6 @@ from .utils import (
     get_related_field_filter_args,
     get_select_related_paths,
 )
-
-import datetime as _datetime
 
 _UTC = _datetime.timezone.utc
 
@@ -178,9 +177,6 @@ class BaseMongoengineConnectionField(ConnectionField):
         extra_args = dict(
             dict(dict(_field_args, **_advance_args), **_filter_args), **_extended_args
         )
-        for arg_, type_ in extra_args.items():
-            if hasattr(type_, "is_type_of") and type_.is_type_of is None:
-                extra_args[arg_] = graphene.ID(description=type_._meta.description)
         for key in list(self._base_args.keys()):
             extra_args.pop(key, None)
         return to_arguments(self._base_args or OrderedDict(), extra_args)
@@ -236,14 +232,14 @@ class BaseMongoengineConnectionField(ConnectionField):
             if isinstance(converted, (ConnectionField, Dynamic)):
                 return False
             if callable(getattr(converted, "type", None)) and isinstance(
-                    converted.type(),
-                    (
-                            FileFieldType,
-                            PointFieldType,
-                            MultiPolygonFieldType,
-                            PolygonFieldType,
-                            graphene.Union,
-                    ),
+                converted.type(),
+                (
+                    FileFieldType,
+                    PointFieldType,
+                    MultiPolygonFieldType,
+                    PolygonFieldType,
+                    graphene.Union,
+                ),
             ):
                 return False
             if isinstance(converted, graphene.List):
@@ -251,28 +247,37 @@ class BaseMongoengineConnectionField(ConnectionField):
                 if hasattr(sub_type, "of_type"):
                     sub_type = sub_type.of_type
                 if issubclass(sub_type, graphene.Union) or issubclass(
-                        sub_type, graphene.ObjectType
+                    sub_type, graphene.ObjectType
                 ):
                     return False
             if (
-                    hasattr(field_, "type")
-                    and hasattr(converted, "type")
-                    and converted.type != field_.type
+                hasattr(field_, "type")
+                and hasattr(converted, "type")
+                and converted.type != field_.type
             ):
                 return False
             return True
 
-        def get_filter_type(_type):
+        def get_filter_type(_type, field_name):
             if isinstance(_type, Structure):
-                return get_filter_type(_type.of_type)
+                return get_filter_type(_type.of_type, field_name)
+
+            if is_node(_type):
+                # Allow federated node types to be added as filters
+                # This case occurs when user defines the field's external type manually within
+                # the AsyncMongoengineObjectType definition
+                return convert_mongoengine_field(
+                    getattr(self.model, field_name), self.registry, self.executor
+                )
+
             return _type()
 
         return {
-            k: ft
-            for k, v in items
-            if is_filterable(k)
-            for ft in [get_filter_type(v.type)]
-            if ft is not None
+            field_name: field_type
+            for field_name, gql_type in items
+            if is_filterable(field_name)
+            for field_type in [get_filter_type(gql_type.type, field_name)]
+            if field_type is not None
         }
 
     @property
@@ -347,8 +352,8 @@ class BaseMongoengineConnectionField(ConnectionField):
                 r.update({kv[0]: graphene.Argument(PointFieldInputType)})
                 return r
             if isinstance(
-                    mongo_field,
-                    (mongoengine.ReferenceField, mongoengine.GenericReferenceField),
+                mongo_field,
+                (mongoengine.ReferenceField, mongoengine.GenericReferenceField),
             ):
                 r.update({kv[0]: graphene.ID()})
                 return r
@@ -364,7 +369,7 @@ class BaseMongoengineConnectionField(ConnectionField):
                         else _type.type._of_type._meta
                     )
                     if "id" in node.fields and not issubclass(
-                            node.model, (mongoengine.EmbeddedDocument,)
+                        node.model, (mongoengine.EmbeddedDocument,)
                     ):
                         r.update({kv[0]: node.fields["id"]._type.of_type()})
             return r
@@ -424,7 +429,7 @@ class BaseMongoengineConnectionField(ConnectionField):
         hydrated: dict = {}
         for arg_name, arg in args.copy().items():
             if arg_name in reference_fields and not isinstance(
-                    arg, mongoengine.base.metaclasses.TopLevelDocumentMetaclass
+                arg, mongoengine.base.TopLevelDocumentMetaclass
             ):
                 try:
                     reference_obj = reference_fields[arg_name].document_type(
@@ -434,7 +439,7 @@ class BaseMongoengineConnectionField(ConnectionField):
                     reference_obj = reference_fields[arg_name].document_type(pk=arg)
                 hydrated[arg_name] = reference_obj
             elif arg_name in self.model._fields_ordered and isinstance(
-                    getattr(self.model, arg_name), mongoengine.fields.GenericReferenceField
+                getattr(self.model, arg_name), mongoengine.fields.GenericReferenceField
             ):
                 try:
                     reference_obj = get_document(
@@ -444,17 +449,14 @@ class BaseMongoengineConnectionField(ConnectionField):
                     reference_obj = get_document(arg["_cls"])(pk=arg["_ref"].id)
                 hydrated[arg_name] = reference_obj
             elif "__near" in arg_name and isinstance(
-                    getattr(self.model, arg_name.split("__")[0]), mongoengine.fields.PointField
+                getattr(self.model, arg_name.split("__")[0]), mongoengine.fields.PointField
             ):
                 location = args.pop(arg_name, None)
                 hydrated[arg_name] = location["coordinates"]
                 if (arg_name.split("__")[0] + "__max_distance") not in args:
                     hydrated[arg_name.split("__")[0] + "__max_distance"] = 10000
-            elif (
-                    arg_name in self.model._fields_ordered
-                    and isinstance(
+            elif arg_name in self.model._fields_ordered and isinstance(
                 getattr(self.model, arg_name), mongoengine.AwareDateTimeField
-            )
             ):
                 # AwareDateTimeField stores {"utc": datetime, "tz": str}.
                 # Rewrite bare field filter to compare against the utc subfield.
@@ -463,11 +465,8 @@ class BaseMongoengineConnectionField(ConnectionField):
                 # Handle operator suffixes e.g. start_time__gte, start_time__lte,
                 # start_time__in (list), etc.
                 field_name, _, op = arg_name.partition("__")
-                if (
-                        field_name in self.model._fields_ordered
-                        and isinstance(
+                if field_name in self.model._fields_ordered and isinstance(
                     getattr(self.model, field_name), mongoengine.AwareDateTimeField
-                )
                 ):
                     value = args.pop(arg_name)
                     hydrated[field_name + "__utc__" + op] = _to_utc(value)
@@ -519,9 +518,7 @@ class BaseMongoengineConnectionField(ConnectionField):
             qs = qs.select_related(*related)
             for field_name, field_filter in related_filter.items():
                 if field_name in related:
-                    qs = qs.filter(
-                        **{f"{field_name}__{k}": v for k, v in field_filter.items()}
-                    )
+                    qs = qs.filter(**{f"{field_name}__{k}": v for k, v in field_filter.items()})
         return qs
 
     def _build_args_copy(self, args: dict) -> dict:
@@ -543,10 +540,8 @@ class BaseMongoengineConnectionField(ConnectionField):
             if key not in self.model._fields_ordered:
                 args_copy.pop(key)
             elif isinstance(
-                    getattr(self.model, key), mongoengine.fields.ReferenceField
-            ) or isinstance(
-                getattr(self.model, key), mongoengine.fields.GenericReferenceField
-            ):
+                getattr(self.model, key), mongoengine.fields.ReferenceField
+            ) or isinstance(getattr(self.model, key), mongoengine.fields.GenericReferenceField):
                 if not isinstance(args_copy[key], ObjectId):
                     _from_global_id = from_global_id(args_copy[key])[1]
                     args_copy[key] = (
@@ -589,13 +584,11 @@ class BaseMongoengineConnectionField(ConnectionField):
                 if isinstance(getattr(_root, field_name, []), list):
                     args["pk__in"] = [r.id for r in getattr(_root, field_name, [])]
             elif field_name in _root._fields_ordered and not (
-                    isinstance(
-                        _root._fields[field_name].field, mongoengine.EmbeddedDocumentField
-                    )
-                    or isinstance(
-                _root._fields[field_name].field,
-                mongoengine.GenericEmbeddedDocumentField,
-            )
+                isinstance(_root._fields[field_name].field, mongoengine.EmbeddedDocumentField)
+                or isinstance(
+                    _root._fields[field_name].field,
+                    mongoengine.GenericEmbeddedDocumentField,
+                )
             ):
                 raw = getattr(_root, field_name, [])
                 if raw is not None:
@@ -624,9 +617,7 @@ class BaseMongoengineConnectionField(ConnectionField):
         Returns:
             list[str]: Field names to pass to .only(...) on the QuerySet.
         """
-        required_fields = [
-            f for f in self.required_fields if f in self.model._fields_ordered
-        ]
+        required_fields = [f for f in self.required_fields if f in self.model._fields_ordered]
         required_fields += [
             to_snake_case(f)
             for f in get_query_fields(info)
@@ -658,10 +649,10 @@ class BaseMongoengineConnectionField(ConnectionField):
         """
         for arg_name, arg in args.copy().items():
             if "." in arg_name or arg_name not in self.model._fields_ordered + (
-                    "first",
-                    "last",
-                    "before",
-                    "after",
+                "first",
+                "last",
+                "before",
+                "after",
             ) + tuple(self.filter_args.keys()):
                 args_copy.pop(arg_name, None)
                 if arg_name == "_id" and isinstance(arg, dict):
@@ -670,9 +661,9 @@ class BaseMongoengineConnectionField(ConnectionField):
                 if not isinstance(arg, ObjectId) and "." in arg_name:
                     if isinstance(arg, dict):
                         operation = list(arg.keys())[0]
-                        args_copy[
-                            arg_name.replace(".", "__") + operation.replace("$", "__")
-                            ] = arg[operation]
+                        args_copy[arg_name.replace(".", "__") + operation.replace("$", "__")] = arg[
+                            operation
+                        ]
                     else:
                         args_copy[arg_name.replace(".", "__")] = arg
                 elif "." in arg_name and isinstance(arg, ObjectId):

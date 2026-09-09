@@ -1,4 +1,4 @@
-from graphene import Field, Int, Interface, ObjectType
+from graphene import ID, Field, Int, Interface, List, ObjectType
 from graphene.relay import Node, is_node
 from pytest import raises
 
@@ -8,6 +8,7 @@ from ..models import (
     Child,
     EmbeddedArticle,
     Exam,
+    FederatedReference,
     Parent,
     Reporter,
     School,
@@ -234,3 +235,40 @@ def test_filter_list_types():
         "id",
         "subjects",
     }
+
+
+def test_filter_resolution_on_federated_types():
+    """
+    Test to check filter args are generated when using federated types
+    """
+
+    from graphene_mongo import MongoengineConnectionField
+
+    class ExternalFederatedNode(ObjectType):
+        class Meta:
+            interfaces = (Node,)
+
+    class ReferenceExampleModelNode(MongoengineObjectType):
+        class Meta:  # pylint: disable=too-few-public-methods
+            model = FederatedReference
+            interfaces = (Node,)
+
+        reference = Field(ExternalFederatedNode)
+        references = List(ExternalFederatedNode)
+
+    connection = MongoengineConnectionField(ReferenceExampleModelNode)
+    assert connection.args.keys() == {
+        "before",
+        "after",
+        "first",
+        "last",
+        "id",
+        "reference",
+        "references",
+    }
+
+    assert connection.args["reference"].type == ID
+    assert (
+        isinstance(connection.args["references"].type, List)
+        and connection.args["references"].type.of_type == ID
+    )

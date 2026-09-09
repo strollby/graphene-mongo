@@ -7,7 +7,7 @@ from api import GraphQLResource
 class MongoLifespan:
     async def process_startup(self, scope, event):
         mongoengine.connect("bookmarks_db")
-        await mongoengine.async_connect("bookmarks_db")
+        mongoengine.async_connect("bookmarks_db")
 
     async def process_shutdown(self, scope, event):
         mongoengine.disconnect()

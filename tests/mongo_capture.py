@@ -59,7 +59,7 @@ class captured_commands:
         return self
 
     def __exit__(self, *_):
-        self.events = _capture._log[self._start:]
+        self.events = _capture._log[self._start :]
 
     async def __aenter__(self):
         return self.__enter__()
@@ -70,10 +70,7 @@ class captured_commands:
     @property
     def command_count(self) -> int:
         """Number of MongoDB commands (find + aggregate) issued in this block."""
-        return sum(
-            1 for e in self.events
-            if e.command_name in ("find", "aggregate")
-        )
+        return sum(1 for e in self.events if e.command_name in ("find", "aggregate"))
 
     def projected_fields(self) -> set[str]:
         """
@@ -91,9 +88,7 @@ class captured_commands:
             elif event.command_name == "aggregate":
                 for stage in cmd.get("pipeline", []):
                     if "$project" in stage:
-                        fields.update(
-                            k for k, v in stage["$project"].items() if v
-                        )
+                        fields.update(k for k, v in stage["$project"].items() if v)
         return fields
 
     def projected_fields_for(self, collection: str) -> set[str]:
@@ -111,7 +106,5 @@ class captured_commands:
             elif event.command_name == "aggregate" and cmd.get("aggregate") == collection:
                 for stage in cmd.get("pipeline", []):
                     if "$project" in stage:
-                        fields.update(
-                            k for k, v in stage["$project"].items() if v
-                        )
+                        fields.update(k for k, v in stage["$project"].items() if v)
         return fields

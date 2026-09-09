@@ -1,7 +1,7 @@
 from graphene import Enum
 from mongoengine import Document
 
-from graphene_mongo.base.utils import ExecutorEnum
+from graphene_mongo.utils import ExecutorEnum
 
 
 class Registry:
@@ -42,8 +42,8 @@ class Registry:
             AssertionError: If *cls* is not a recognised Mongoengine object type,
                 or if cls._meta.registry does not point to this Registry instance.
         """
-        from ..synchronous.types import GrapheneMongoengineObjectTypes
-        from ..asynchronous.types import AsyncGrapheneMongoengineObjectTypes
+        from graphene_mongo.asynchronous.types import AsyncGrapheneMongoengineObjectTypes
+        from graphene_mongo.synchronous.types import GrapheneMongoengineObjectTypes
 
         assert issubclass(cls, GrapheneMongoengineObjectTypes) or issubclass(
             cls, AsyncGrapheneMongoengineObjectTypes

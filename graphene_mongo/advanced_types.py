@@ -1,21 +1,19 @@
 import base64
 import datetime
-import re as _re
+import re
 
 import graphene
 from graphene_federation import shareable
+from graphql.error import GraphQLError
+from graphql.language.ast import StringValueNode
+from graphql.language.printer import print_ast
 
 try:
     from datetime import UTC
 except ImportError:
     UTC = datetime.timezone.utc
 
-try:
-    from zoneinfo import ZoneInfo as _ZoneInfo
-except ImportError:
-    from backports.zoneinfo import ZoneInfo as _ZoneInfo
-
-_IXDTF_RE = _re.compile(r"^(.*)\[([^\]!]+)\]$")
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 
 @shareable  # Support Graphene Federation v2
@@ -159,67 +157,74 @@ class MultiPolygonFieldType(_CoordinatesTypeField):
 
 
 class AwareDateTimeScalar(graphene.Scalar):
-    """RFC 9557 IXDTF scalar for MongoEngine AwareDateTimeField.
+    """
+    The `AwareDateTime` scalar type represents a DateTime value
+    with extended timezone information as specified by RFC 9557 (IXDTF).
 
     Serialises to the Internet Extended Date/Time Format (IXDTF):
         "2024-05-16T12:00:00+09:00[Asia/Tokyo]"
          ↑ local wall-clock time    ↑ IANA timezone annotation
-
-    The datetime component represents local time in the annotated timezone
-    (including the correct UTC offset for DST). Clients can parse this
-    directly with the JavaScript Temporal API:
-        Temporal.ZonedDateTime.from("2024-05-16T12:00:00+09:00[Asia/Tokyo]")
-
-    Accepts as input:
-        - Full IXDTF string: "2024-06-15T14:30:00+05:30[Asia/Kolkata]"
-        - Plain RFC 3339 string with offset: "2024-06-15T09:00:00+00:00"
-        - UTC string: "2024-06-15T09:00:00Z"
     """
 
     class Meta:
         name = "AwareDateTime"
 
+    # Regex to match the RFC 3339 base and the IXDTF bracketed suffix
+    REGEX = re.compile(r"([^\[]+)\[([^\]]+)\]")  # noqa: F821
+
     @staticmethod
-    def serialize(value):
+    def serialize(dt) -> str:
         """Serialise a stored AwareDateTimeField value to an IXDTF string."""
-        if isinstance(value, dict):
-            utc_dt = value["utc"]
-            tz_name = value["tz"]
-        else:
-            tzinfo = getattr(value, "tzinfo", None)
-            if hasattr(tzinfo, "key"):
-                tz_name = tzinfo.key
-            elif hasattr(tzinfo, "zone"):
-                tz_name = tzinfo.zone
-            else:
-                tz_name = str(tzinfo)
-            utc_dt = value
 
-        if utc_dt.tzinfo is None:
-            utc_dt = utc_dt.replace(tzinfo=UTC)
+        # 1. Reject strict date objects
+        if type(dt) is datetime.date:
+            raise GraphQLError(f"AwareDateTime cannot represent a date-only value: {repr(dt)}")
 
-        local_dt = utc_dt.astimezone(_ZoneInfo(tz_name))
-        return f"{local_dt.isoformat()}[{tz_name}]"
+        # 2. Reject if it's not a datetime or completely lacks tzinfo
+        if not isinstance(dt, datetime.datetime) or dt.tzinfo is None:
+            raise GraphQLError(f"AwareDateTime requires a timezone-aware datetime: {repr(dt)}")
 
-    @staticmethod
-    def parse_value(value):
-        """Parse an IXDTF string (or plain ISO 8601) to a timezone-aware datetime."""
-        if not isinstance(value, str):
-            raise ValueError(f"AwareDateTime requires a string, got {type(value).__name__}")
-        m = _IXDTF_RE.match(value)
-        if m:
-            dt_str, tz_name = m.group(1), m.group(2)
-            dt = datetime.datetime.fromisoformat(dt_str)
-            if dt.tzinfo is None:
-                dt = dt.replace(tzinfo=_ZoneInfo(tz_name))
-            return dt
-        return datetime.datetime.fromisoformat(value)
+        # 3. Check for the region key
+        tz_key = getattr(dt.tzinfo, "key", None)
 
-    @staticmethod
-    def parse_literal(ast):
+        if tz_key is None:
+            # Fallback scenario: No .key found (e.g., standard datetime.timezone.utc or a fixed offset)
+            # Convert the datetime to true UTC so .isoformat() outputs "+00:00"
+            dt = dt.astimezone(datetime.UTC)
+            tz_key = "UTC"
+
+        # 4. Construct the RFC 9557 format directly
+        return f"{dt.isoformat()}[{tz_key}]"
+
+    @classmethod
+    def parse_literal(cls, node, _variables=None) -> datetime.datetime:
         """Parse a GraphQL string literal to a timezone-aware datetime."""
-        from graphql import StringValueNode
+        if not isinstance(node, StringValueNode):
+            raise GraphQLError(
+                f"AwareDateTime cannot represent non-string value: {print_ast(node)}"
+            )
+        return cls.parse_value(node.value)
 
-        if isinstance(ast, StringValueNode):
-            return AwareDateTimeScalar.parse_value(ast.value)
-        return None
+    @staticmethod
+    def parse_value(value) -> datetime.datetime:
+        """Parse an IXDTF string/datetime to a timezone-aware datetime."""
+        if isinstance(value, datetime.datetime):
+            return value
+        if not isinstance(value, str):
+            raise GraphQLError(f"AwareDateTime cannot represent non-string value: {repr(value)}")
+
+        match = AwareDateTimeScalar.REGEX.match(value)
+
+        if match:
+            try:
+                rfc3339_part, zone = match.groups()
+                tz = ZoneInfo(zone)
+                return datetime.datetime.fromisoformat(rfc3339_part).astimezone(tz)
+            except ZoneInfoNotFoundError:
+                raise GraphQLError(
+                    f"Unknown timezone identifier in AwareDateTime value: {repr(value)}"
+                )
+            except ValueError:
+                raise GraphQLError(f"AwareDateTime cannot represent value: {repr(value)}")
+
+        raise GraphQLError(f"AwareDateTime cannot represent value: {repr(value)}")

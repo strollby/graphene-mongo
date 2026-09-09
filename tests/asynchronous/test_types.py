@@ -1,4 +1,4 @@
-from graphene import Field, Int, Interface, ObjectType
+from graphene import ID, Field, Int, Interface, List, ObjectType
 from graphene.relay import Node, is_node
 from pytest import raises
 
@@ -13,11 +13,15 @@ from ..models import (
     School,
     SchoolClass,
     Student,
+    FederatedReference,
 )
 from .utils import with_local_async_registry
-from graphene_mongo.asynchronous.types import AsyncMongoengineObjectType, AsyncMongoengineObjectTypeOptions
-from graphene_mongo.base.registry import Registry
-from graphene_mongo.base.utils import ExecutorEnum
+from graphene_mongo.asynchronous.types import (
+    AsyncMongoengineObjectType,
+    AsyncMongoengineObjectTypeOptions,
+)
+from graphene_mongo.registry import Registry
+from graphene_mongo.utils import ExecutorEnum
 
 # Use a private registry so module-level class definitions don't disturb the
 # global async registry (which holds the relay nodes used by other test modules).
@@ -109,6 +113,7 @@ def test_object_type():
 
 def test_should_raise_if_no_model():
     with raises(Exception) as excinfo:
+
         class Human1(AsyncMongoengineObjectType):
             pass
 
@@ -117,6 +122,7 @@ def test_should_raise_if_no_model():
 
 def test_should_raise_if_model_is_invalid():
     with raises(Exception) as excinfo:
+
         class Human2(AsyncMongoengineObjectType):
             class Meta:
                 model = 1
@@ -169,6 +175,7 @@ def test_passing_meta_when_subclassing_mongoengine_objecttype():
             )
 
     with raises(Exception) as einfo:
+
         class A(TypeSubclassWithBadOptions):
             class Meta:
                 model = Article
@@ -235,3 +242,40 @@ def test_filter_list_types():
         "id",
         "subjects",
     }
+
+
+def test_filter_resolution_on_federated_types():
+    """
+    Test to check filter args are generated when using federated types
+    """
+
+    from graphene_mongo import AsyncMongoengineConnectionField
+
+    class ExternalFederatedAsyncNode(ObjectType):
+        class Meta:
+            interfaces = (Node,)
+
+    class ReferenceExampleModelAsyncNode(AsyncMongoengineObjectType):
+        class Meta:  # pylint: disable=too-few-public-methods
+            model = FederatedReference
+            interfaces = (Node,)
+
+        reference = Field(ExternalFederatedAsyncNode)
+        references = List(ExternalFederatedAsyncNode)
+
+    connection = AsyncMongoengineConnectionField(ReferenceExampleModelAsyncNode)
+    assert connection.args.keys() == {
+        "before",
+        "after",
+        "first",
+        "last",
+        "id",
+        "reference",
+        "references",
+    }
+
+    assert connection.args["reference"].type == ID
+    assert (
+        isinstance(connection.args["references"].type, List)
+        and connection.args["references"].type.of_type == ID
+    )

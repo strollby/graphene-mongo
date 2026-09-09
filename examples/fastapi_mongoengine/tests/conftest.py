@@ -1,5 +1,6 @@
 import sys
 import os
+
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 import mongoengine
@@ -15,7 +16,7 @@ from database import init_db
 async def setup():
     gridfs.enable_gridfs_integration()
     mongoengine.connect("library-test", host="mongomock://localhost")
-    await mongoengine.async_connect("library-test", host="mongomock://localhost")
+    mongoengine.async_connect("library-test", host="mongomock://localhost")
     init_db()
 
 

@@ -444,7 +444,7 @@ test = [
 requires-dist = [
     { name = "graphene", specifier = ">=3.1.1" },
     { name = "graphene-federation", specifier = ">=3.1.5" },
-    { name = "mongoengine", git = "https://github.com/strollby/mongoengine?tag=v0.30.0-alpha.7" },
+    { name = "mongoengine", git = "https://github.com/strollby/mongoengine?rev=v0.30.0-alpha.7" },
     { name = "promise", specifier = ">=2.3" },
 ]
 
@@ -640,7 +640,7 @@ wheels = [
 [[package]]
 name = "mongoengine"
 version = "0.30.0"
-source = { git = "https://github.com/strollby/mongoengine?tag=v0.30.0-alpha.7#d918b1a0798d2943b77fbef8fe7b675f83c7e359" }
+source = { git = "https://github.com/strollby/mongoengine?rev=v0.30.0-alpha.7#d918b1a0798d2943b77fbef8fe7b675f83c7e359" }
 dependencies = [
     { name = "pymongo" },
 ]
